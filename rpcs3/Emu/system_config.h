@@ -257,15 +257,15 @@ struct cfg_root : cfg::node
 		node_net(cfg::node* _this) : cfg::node(_this, "Net") {}
 
 		cfg::_enum<np_internet_status> net_active{this, "Internet enabled", np_internet_status::disabled};
-		cfg::string ip_address{this, "IP address", "0.0.0.0"};
-		cfg::string dns{this, "DNS address", "8.8.8.8"};
-		cfg::string swap_list{this, "IP swap list", ""};
+		cfg::secret_string ip_address{this, "IP address", "0.0.0.0"};
+		cfg::secret_string dns{this, "DNS address", "8.8.8.8"};
+		cfg::secret_string swap_list{this, "IP swap list", ""};
 
 		cfg::_enum<np_psn_status> psn_status{this, "PSN status", np_psn_status::disabled};
-		cfg::string psn_npid{this, "NPID", ""};
+		cfg::secret_string psn_npid{this, "NPID", ""};
 
-		cfg::string rpcn_host{this, "RPCN host", ""};
-		cfg::string rpcn_password{this, "RPCN Password", ""};
+		cfg::secret_string rpcn_host{this, "RPCN host", ""};
+		cfg::secret_string rpcn_password{this, "RPCN Password", ""};
 	} net{this};
 
 	struct node_misc : cfg::node

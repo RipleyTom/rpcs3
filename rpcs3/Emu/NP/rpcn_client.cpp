@@ -7,7 +7,6 @@
 #include "rpcn_client.h"
 #include "np_structs_extra.h"
 #include "Utilities/StrUtil.h"
-#include "Utilities/Log.h"
 #include "Utilities/BEType.h"
 #include "Utilities/Thread.h"
 #include "Emu/IdManager.h"
@@ -40,10 +39,9 @@ LOG_CHANNEL(rpcn_log);
 rpcn_client::rpcn_client(bool in_config)
     : in_config(in_config)
 {
-	// Should this be here?
 #ifdef _WIN32
-		WSADATA wsa_data;
-		WSAStartup(MAKEWORD(2, 2), &wsa_data);
+	WSADATA wsa_data;
+	WSAStartup(MAKEWORD(2, 2), &wsa_data);
 #endif
 }
 
@@ -55,6 +53,21 @@ rpcn_client::~rpcn_client()
 void rpcn_client::disconnect()
 {
 	std::lock_guard lock(mutex_socket);
+
+	if (wssl)
+	{
+		wolfSSL_free(wssl);
+		wssl = nullptr;
+	}
+
+	if (wssl_ctx)
+	{
+		wolfSSL_CTX_free(wssl_ctx);
+		wssl_ctx = nullptr;
+	}
+
+	wolfSSL_Cleanup();
+
 	if (sockfd)
 	{
 #ifdef _WIN32
@@ -62,11 +75,12 @@ void rpcn_client::disconnect()
 #else
 		::close(sockfd);
 #endif
+		sockfd = 0;
 	}
 
-	sockfd = 0;
-	connected = false;
-	authentified = false;
+	connected            = false;
+	authentified         = false;
+	server_info_received = false;
 }
 
 rpcn_client::recvn_result rpcn_client::recvn(u8* buf, size_t n, bool blocking)
@@ -76,7 +90,7 @@ rpcn_client::recvn_result rpcn_client::recvn(u8* buf, size_t n, bool blocking)
 	size_t n_recv = 0;
 	while (n_recv != n && !is_abort())
 	{
-		int res = ::recv(sockfd, reinterpret_cast<char*>(buf) + n_recv, n - n_recv, 0);
+		int res = wolfSSL_read(wssl, reinterpret_cast<char*>(buf) + n_recv, n - n_recv);
 		if (res == -1)
 		{
 #ifdef _WIN32
@@ -118,7 +132,7 @@ bool rpcn_client::send_packet(const std::vector<u8>& packet)
 {
 	std::lock_guard lock(mutex_socket);
 
-	s32 ret = ::send(sockfd, reinterpret_cast<const char*>(packet.data()), packet.size(), 0);
+	s32 ret = wolfSSL_write(wssl, reinterpret_cast<const char*>(packet.data()), packet.size());
 
 	if (ret != static_cast<s32>(packet.size()))
 	{
@@ -156,34 +170,59 @@ bool rpcn_client::forge_send_reply(u16 command, u32 packet_id, const std::vector
 
 bool rpcn_client::connect(const std::string& host)
 {
-	rpcn_log.notice("Attempting to connect to RPCN: %s", host);
+	rpcn_log.warning("Attempting to connect to RPCN!");
+
+	// Cleans previous data if any
+	disconnect();
+
+	std::lock_guard lock(mutex_socket);
+
+	if (wolfSSL_Init() != WOLFSSL_SUCCESS)
+	{
+		rpcn_log.fatal("Failed to initialize wolfssl");
+		return false;
+	}
+
+	if ((wssl_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method())) == nullptr)
+	{
+		rpcn_log.fatal("Failed to create wolfssl context");
+		return false;
+	}
+
+	wolfSSL_CTX_set_verify(wssl_ctx, SSL_VERIFY_NONE, 0);
+
+	if ((wssl = wolfSSL_new(wssl_ctx)) == nullptr)
+	{
+		rpcn_log.fatal("Failed to create wolfssl object");
+		return false;
+	}
 
 	memset(&addr_rpcn, 0, sizeof(addr_rpcn));
 
-	addr_rpcn.sin_port   = htons(31313);
+	addr_rpcn.sin_port   = std::bit_cast<u16, be_t<u16>>(31313); // htons
 	addr_rpcn.sin_family = AF_INET;
-	auto splithost     = fmt::split(host, {":"});
+	auto splithost       = fmt::split(host, {":"});
 
 	if (splithost.size() != 1 && splithost.size() != 2)
 	{
-		rpcn_log.error("RPCN host is invalid!");
+		rpcn_log.fatal("RPCN host is invalid!");
 		return false;
 	}
 
 	if (splithost.size() == 2)
-		addr_rpcn.sin_port = htons(std::stoul(splithost[1]));
+		addr_rpcn.sin_port = std::bit_cast<u16, be_t<u16>>(std::stoul(splithost[1])); // htons
 
-	hostent *host_addr = gethostbyname(splithost[0].c_str());
+	hostent* host_addr = gethostbyname(splithost[0].c_str());
 	if (!host_addr)
 	{
-		rpcn_log.error("Failed to resolve %s", splithost[0]);
+		rpcn_log.fatal("Failed to resolve %s", splithost[0]);
 		return false;
 	}
 
-	addr_rpcn.sin_addr.s_addr = *reinterpret_cast<u32 *>(host_addr->h_addr_list[0]);
+	addr_rpcn.sin_addr.s_addr = *reinterpret_cast<u32*>(host_addr->h_addr_list[0]);
 
 	memcpy(&addr_rpcn_udp, &addr_rpcn, sizeof(addr_rpcn_udp));
-	addr_rpcn_udp.sin_port = htons(3657);
+	addr_rpcn_udp.sin_port = std::bit_cast<u16, be_t<u16>>(3657); // htons
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -192,13 +231,27 @@ bool rpcn_client::connect(const std::string& host)
 	timeout.tv_usec = 0;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&timeout), sizeof(timeout)) < 0)
 	{
-		rpcn_log.error("Failed to setsockopt!");
+		rpcn_log.fatal("Failed to setsockopt!");
 		return false;
 	}
 
 	if (::connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr_rpcn), sizeof(addr_rpcn)) != 0)
 	{
-		rpcn_log.error("Failed to connect to RPCN server!");
+		rpcn_log.fatal("Failed to connect to RPCN server!");
+		return false;
+	}
+
+	if (wolfSSL_set_fd(wssl, sockfd) != WOLFSSL_SUCCESS)
+	{
+		rpcn_log.fatal("Failed to associate wolfssl to the socket");
+		return false;
+	}
+
+	if (auto ret_connect = wolfSSL_connect(wssl); ret_connect != SSL_SUCCESS)
+	{
+		char error_string[80];
+		auto wssl_err = wolfSSL_get_error(wssl, ret_connect);
+		rpcn_log.fatal("Handshake failed with RPCN Server: %s", wolfSSL_ERR_error_string(wssl_err, error_string));
 		return false;
 	}
 
@@ -209,7 +262,7 @@ bool rpcn_client::connect(const std::string& host)
 
 	if (received_version != RPCN_PROTOCOL_VERSION)
 	{
-		rpcn_log.error("Server returned protocol version: %d, expected: %d", received_version, RPCN_PROTOCOL_VERSION);
+		rpcn_log.fatal("Server returned protocol version: %d, expected: %d", received_version, RPCN_PROTOCOL_VERSION);
 		disconnect();
 		return false;
 	}
@@ -303,7 +356,7 @@ bool rpcn_client::create_user(const std::string& npid, const std::string& passwo
 	return true;
 }
 
-s32 send_packet_from_p2p_port(std::vector<u8>& data, sockaddr_in& addr);
+s32 send_packet_from_p2p_port(const std::vector<u8>& data, const sockaddr_in& addr);
 std::queue<std::vector<u8>> get_rpcn_msgs();
 
 bool rpcn_client::manage_connection()
@@ -318,7 +371,7 @@ bool rpcn_client::manage_connection()
 
 		auto rpcn_msgs = get_rpcn_msgs();
 
-		while(!rpcn_msgs.empty())
+		while (!rpcn_msgs.empty())
 		{
 			const auto& msg = rpcn_msgs.front();
 
@@ -344,8 +397,8 @@ bool rpcn_client::manage_connection()
 		if ((now - last_pong_time) > std::chrono::seconds(5) && (now - last_ping_time) > std::chrono::milliseconds(500))
 		{
 			std::vector<u8> ping(9);
-			ping[0] = 1;
-			*reinterpret_cast<le_t<s64> *>(&ping[1]) = user_id;
+			ping[0]                                 = 1;
+			*reinterpret_cast<le_t<s64>*>(&ping[1]) = user_id;
 			send_packet_from_p2p_port(ping, addr_rpcn_udp);
 			last_ping_time = now;
 		}
@@ -354,15 +407,12 @@ bool rpcn_client::manage_connection()
 	u8 header[RPCN_HEADER_SIZE];
 	auto res_recvn = recvn(header, RPCN_HEADER_SIZE, false);
 
-	switch(res_recvn)
+	switch (res_recvn)
 	{
-		case recvn_result::recvn_fatal:
-		case recvn_result::recvn_timeout:
-			return error_and_disconnect("Failed to read a packet header on socket");
-		case recvn_result::recvn_nodata:
-			return false;
-		case recvn_result::recvn_success:
-			break;
+	case recvn_result::recvn_fatal:
+	case recvn_result::recvn_timeout: return error_and_disconnect("Failed to read a packet header on socket");
+	case recvn_result::recvn_nodata: return false;
+	case recvn_result::recvn_success: break;
 	}
 
 	const u8 packet_type  = header[0];
@@ -917,7 +967,7 @@ std::vector<u8> rpcn_client::forge_request(u16 command, u32 packet_id, const std
 	u16 packet_size = data.size() + RPCN_HEADER_SIZE;
 
 	std::vector<u8> packet(packet_size);
-	packet[0]             = PacketType::Request;
+	packet[0]                               = PacketType::Request;
 	reinterpret_cast<le_t<u16>&>(packet[1]) = command;
 	reinterpret_cast<le_t<u16>&>(packet[3]) = packet_size;
 	reinterpret_cast<le_t<u32>&>(packet[5]) = packet_id;
@@ -951,7 +1001,7 @@ bool rpcn_client::is_error(ErrorType err) const
 
 bool rpcn_client::error_and_disconnect(const std::string& error_msg)
 {
-	rpcn_log.error("%s", error_msg);
+	rpcn_log.fatal("%s", error_msg);
 	disconnect();
 	return false;
 }

@@ -4,6 +4,12 @@
 
 #include "Utilities/BEType.h"
 
+enum
+{
+	SCE_NP_COMMERCE2_STORE_IS_NOT_EMPTY = 0,
+	SCE_NP_COMMERCE2_STORE_IS_EMPTY = 1,
+};
+
 // Return codes
 enum SceNpCommerce2Error
 {

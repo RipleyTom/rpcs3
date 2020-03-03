@@ -20,6 +20,8 @@
 
 #include "generated/np2_structs_generated.h"
 
+#include <wolfssl/ssl.h>
+
 class vec_stream
 {
 public:
@@ -208,6 +210,9 @@ protected:
 protected:
 	atomic_t<bool> connected    = false;
 	atomic_t<bool> authentified = false;
+
+	WOLFSSL_CTX* wssl_ctx = nullptr;
+	WOLFSSL* wssl = nullptr;
 
 	bool in_config    = false;
 	bool abort_config = false;

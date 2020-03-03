@@ -42,40 +42,15 @@ np_handler::np_handler()
 			nph_log.error("Failed to discover local IP!");
 			is_connected = false;
 			is_psn_active = false;
-			cur_ip       = "0.0.0.0";
-		}
-		else
-		{
-			struct sockaddr_in name;
-			socklen_t namelen = sizeof(name);
-			err               = getsockname(sock, reinterpret_cast<struct sockaddr*>(&name), &namelen);
-
-			char buffer[80];
-			const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, 80);
-
-			if (p == nullptr)
-			{
-				sys_net.error("Failed to convert address for IP discovery");
-				is_connected = false;
-				cur_ip       = "0.0.0.0";
-			}
-			else
-			{
-				cur_ip = p;				
-			}
-
-			struct in_addr addr;
-			inet_pton(AF_INET, cur_ip.c_str(), &addr);
-			cur_addr = addr.s_addr;
 		}
 
 		// Convert dns address
 		// TODO: recover actual user dns through OS specific API
 		in_addr conv{};
-		if (!inet_pton(AF_INET, g_cfg.net.dns.to_string().c_str(), &conv))
+		if (!inet_pton(AF_INET, g_cfg.net.dns.to_secret_string().c_str(), &conv))
 		{
 			// Do not set to disconnected on invalid IP just error and continue using default(google's 8.8.8.8)
-			nph_log.error("Provided IP(%s) address for DNS is invalid!", g_cfg.net.dns.to_string());
+			nph_log.error("Provided IP(%s) address for DNS is invalid!", g_cfg.net.dns.to_secret_string());
 		}
 		else
 		{
@@ -83,7 +58,7 @@ np_handler::np_handler()
 		}
 
 		// Init switch map for dns
-		auto swaps = fmt::split(g_cfg.net.swap_list, {"&&"});
+		auto swaps = fmt::split(g_cfg.net.swap_list.to_secret_string(), {"&&"});
 		for (std::size_t i = 0; i < swaps.size(); i++)
 		{
 			auto host_and_ip = fmt::split(swaps[i], {"="});
@@ -208,10 +183,10 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 
 	if (g_cfg.net.psn_status >= np_psn_status::fake)
 	{
-		std::string s_npid = g_cfg.net.psn_npid;
+		std::string s_npid = g_cfg.net.psn_npid.to_secret_string();
 		ASSERT(s_npid != ""); // It should be generated in settings window if empty
 
-		std::memcpy(npid.handle.data, s_npid.c_str(), std::min(sizeof(npid.handle.data), s_npid.size());
+		std::memcpy(npid.handle.data, s_npid.c_str(), std::min(sizeof(npid.handle.data), s_npid.size()));
 		npid.reserved[0] = 1;
 	}
 
@@ -221,8 +196,8 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 		break;
 	case np_psn_status::fake:
 	{
-		std::memcpy(online_name.data, "RPCS3's user", std::min(sizeof(online_name.data), std::string_view("RPCS3's user").size());
-		std::memcpy(avatar_url.data, "https://i.imgur.com/AfWIyQP.jpg", std::min(sizeof(avatar_url.data), std::string_view("https://i.imgur.com/AfWIyQP.jpg").size());
+		std::memcpy(online_name.data, "RPCS3's user", std::min(sizeof(online_name.data), std::string_view("RPCS3's user").size()));
+		std::memcpy(avatar_url.data, "https://i.imgur.com/AfWIyQP.jpg", std::min(sizeof(avatar_url.data), std::string_view("https://i.imgur.com/AfWIyQP.jpg").size()));
 		break;
 	}
 	case np_psn_status::rpcn:
@@ -231,14 +206,14 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 			break;
 		
 		// Connect RPCN client
-		if (!rpcn.connect(g_cfg.net.rpcn_host))
+		if (!rpcn.connect(g_cfg.net.rpcn_host.to_secret_string()))
 		{
 			rpcn_log.error("Connection to RPCN Failed!");
 			is_psn_active = false;
 			return;
 		}
 
-		if (!rpcn.login(g_cfg.net.psn_npid, g_cfg.net.rpcn_password))
+		if (!rpcn.login(g_cfg.net.psn_npid, g_cfg.net.rpcn_password.to_secret_string()))
 		{
 			rpcn_log.error("RPCN login attempt failed!");
 			is_psn_active = false;
@@ -259,7 +234,7 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 
 void np_handler::terminate_NP()
 {
-	is_psn_active = false;
+	// is_psn_active = false;
 
 	// Reset memory pool
 	mpool.set(0);
@@ -346,6 +321,22 @@ u32 np_handler::get_server_status(SceNpMatching2ContextId ctx_id, vm::cptr<SceNp
 
 	sysutil_register_cb([=](ppu_thread& cb_ppu) -> s32 {
 		cb_info.cb(cb_ppu, cb_info.ctx_id, req_id, SCE_NP_MATCHING2_REQUEST_EVENT_GetServerInfo, event_key, 0, sizeof(SceNpMatching2GetServerInfoResponse), cb_info.cb_arg);
+		return 0;
+	});
+
+	return req_id;
+}
+
+u32 np_handler::create_server_context(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMatching2RequestOptParam> optParam, u16 server_id)
+{
+	u32 req_id    = generate_callback_info(ctx_id, optParam);
+	u32 event_key = get_event_key();
+
+	const auto cb_info = std::move(pending_requests.at(req_id));
+	pending_requests.erase(req_id);
+
+	sysutil_register_cb([=](ppu_thread& cb_ppu) -> s32 {
+		cb_info.cb(cb_ppu, cb_info.ctx_id, req_id, SCE_NP_MATCHING2_REQUEST_EVENT_CreateServerContext, event_key, 0, 0, cb_info.cb_arg);
 		return 0;
 	});
 
@@ -907,15 +898,18 @@ void np_handler::notif_p2p_established(std::vector<u8>& data)
 	info.port = port_p2p;
 
 	// Signal the callback
-	sysutil_register_cb([signal_event_cb = this->signal_event_cb, signal_event_cb_ctx = this->signal_event_cb_ctx, room_id, member_id, signal_event_cb_arg = this->signal_event_cb_arg](ppu_thread& cb_ppu) -> s32 {
-		signal_event_cb(cb_ppu, signal_event_cb_ctx, room_id, member_id, SCE_NP_MATCHING2_SIGNALING_EVENT_Established, 0, signal_event_cb_arg);
-		return 0;
-	});
+	if (signal_event_cb)
+	{
+		sysutil_register_cb([signal_event_cb = this->signal_event_cb, signal_event_cb_ctx = this->signal_event_cb_ctx, room_id, member_id, signal_event_cb_arg = this->signal_event_cb_arg](ppu_thread& cb_ppu) -> s32 {
+			signal_event_cb(cb_ppu, signal_event_cb_ctx, room_id, member_id, SCE_NP_MATCHING2_SIGNALING_EVENT_Established, 0, signal_event_cb_arg);
+			return 0;
+		});
+	}
 
 	in_addr da_addr;
 	da_addr.s_addr = addr_p2p;
 
-	rpcn_log.error("P2P Established(Room Id: %d | Member Id: %d): Address: [%s:%d]", room_id, member_id, inet_ntoa(da_addr), ntohs(port_p2p));
+	rpcn_log.error("P2P Established(Room Id: %d | Member Id: %d): Address: [%s:%d]", room_id, member_id, inet_ntoa(da_addr), std::bit_cast<u16, be_t<u16>>(port_p2p));
 }
 
 const signaling_info& np_handler::get_peer_infos(u16 context_id, u64 room_id, u16 member_id)
@@ -1066,15 +1060,52 @@ bool np_handler::destroy_match2_context(u16 ctx_id)
 {
 	return idm::remove<match2_ctx>(static_cast<u32>(ctx_id));
 }
+std::shared_ptr<np_handler::match2_ctx> np_handler::get_match2_context(u16 ctx_id)
+{
+	return idm::get_unlocked<match2_ctx>(ctx_id);
+}
 
-s32 np_handler::create_lookup_context(vm::cptr<SceNpCommunicationId> communicationId)
+s32 np_handler::create_lookup_title_context(vm::cptr<SceNpCommunicationId> communicationId)
 {
-	return static_cast<s32>(idm::make<lookup_ctx>(communicationId));
+	return static_cast<s32>(idm::make<lookup_title_ctx>(communicationId));
 }
-bool np_handler::destroy_lookup_context(s32 ctx_id)
+bool np_handler::destroy_lookup_title_context(s32 ctx_id)
 {
-	return idm::remove<match2_ctx>(static_cast<u32>(ctx_id));
+	return idm::remove<lookup_title_ctx>(static_cast<u32>(ctx_id));
 }
+
+s32 np_handler::create_lookup_transaction_context(s32 lt_ctx)
+{
+	return static_cast<s32>(idm::make<lookup_transaction_ctx>(lt_ctx));
+}
+bool np_handler::destroy_lookup_transaction_context(s32 ctx_id)
+{
+	return idm::remove<lookup_transaction_ctx>(static_cast<u32>(ctx_id));
+}
+
+s32 np_handler::create_commerce2_context(u32 version, vm::cptr<SceNpId> npid, vm::ptr<SceNpCommerce2Handler> handler, vm::ptr<void> arg)
+{
+	return static_cast<s32>(idm::make<commerce2_ctx>(version, npid, handler, arg));
+}
+bool np_handler::destroy_commerce2_context(s32 ctx_id)
+{
+	return idm::remove<commerce2_ctx>(static_cast<u32>(ctx_id));
+}
+std::shared_ptr<np_handler::commerce2_ctx> np_handler::get_commerce2_context(u16 ctx_id)
+{
+	return idm::get_unlocked<commerce2_ctx>(ctx_id);
+}
+
+s32 np_handler::create_signaling_context(vm::ptr<SceNpId> npid, vm::ptr<SceNpSignalingHandler> handler, vm::ptr<void> arg)
+{
+	return static_cast<s32>(idm::make<signaling_ctx>(npid, handler, arg));
+}
+bool np_handler::destroy_signaling_context(s32 ctx_id)
+{
+	return idm::remove<signaling_ctx>(static_cast<u32>(ctx_id));
+}
+
+
 
 bool np_handler::error_and_disconnect(const std::string& error_msg)
 {
@@ -1088,11 +1119,16 @@ u32 np_handler::generate_callback_info(SceNpMatching2ContextId ctx_id, vm::cptr<
 {
 	callback_info ret;
 
-	const u32 req_id = get_req_id(optParam ? optParam->appReqId : default_match2_optparam.appReqId);
+	const auto ctx = get_match2_context(ctx_id);
+	ASSERT(ctx);
+
+	const u32 req_id = get_req_id(optParam ? optParam->appReqId : ctx->default_match2_optparam.appReqId);
 
 	ret.ctx_id = ctx_id;
-	ret.cb     = optParam ? optParam->cbFunc : default_match2_optparam.cbFunc;
-	ret.cb_arg = optParam ? optParam->cbFuncArg : default_match2_optparam.cbFuncArg;
+	ret.cb     = optParam ? optParam->cbFunc : ctx->default_match2_optparam.cbFunc;
+	ret.cb_arg = optParam ? optParam->cbFuncArg : ctx->default_match2_optparam.cbFuncArg;
+
+	nph_log.warning("Callback used is 0x%x", ret.cb);
 
 	pending_requests[req_id] = std::move(ret);
 
@@ -1104,4 +1140,19 @@ u8* np_handler::allocate_req_result(u32 event_key, size_t size)
 	std::lock_guard lock(mutex_req_results);
 	match2_req_results[event_key] = std::vector<u8>(size, 0);
 	return match2_req_results[event_key].data();
+}
+
+u32 np_handler::add_players_to_history(vm::cptr<SceNpId> npids, u32 count)
+{
+	const u32 req_id = get_req_id(0);
+
+	if (basic_handler)
+	{
+		sysutil_register_cb([basic_handler = this->basic_handler, req_id, basic_handler_arg = this->basic_handler_arg](ppu_thread& cb_ppu) -> s32 {
+			basic_handler(cb_ppu, SCE_NP_BASIC_EVENT_ADD_PLAYERS_HISTORY_RESULT, 0, req_id, basic_handler_arg);
+			return 0;
+		});
+	}
+
+	return req_id;
 }

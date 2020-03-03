@@ -357,6 +357,12 @@ struct lv2_socket final
 	const lv2_socket_type type;
 	const lv2_socket_family family;
 
+	// P2P socket specific information
+	u16 p2p_port = 0, p2p_vport = 0;
+
+	// Queue containing received packets from network_thread for P2P sockets
+	std::queue<std::pair<sys_net_sockaddr_in_p2p, std::vector<u8>>> p2p_data{};
+
 	// Value keepers
 #ifdef _WIN32
 	s32 so_reuseaddr = 0;

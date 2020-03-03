@@ -416,16 +416,17 @@ endif()
 # LLVM
 include(llvm.cmake)
 
+# WOLFSSL
+add_subdirectory(wolfssl EXCLUDE_FROM_ALL)
+
 # CURL
 if(USE_SYSTEM_CURL)
 	message("-- RPCS3: using shared libcurl")
 	find_package(CURL REQUIRED)
-	add_library(wolfssl-3-static INTERFACE)
 	add_library(libcurl INTERFACE)
 	target_link_libraries(libcurl INTERFACE CURL::libcurl)
 else()
 	message("-- RPCS3: building libcurl + wolfssl submodules")
-	add_subdirectory(wolfssl EXCLUDE_FROM_ALL)
 	add_subdirectory(curl EXCLUDE_FROM_ALL)
 endif()
 

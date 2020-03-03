@@ -880,13 +880,13 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 	m_emu_settings->EnhanceLineEdit(ui->edit_npid, emu_settings_type::PSNNPID);
 	SubscribeTooltip(ui->gb_edit_npid, tooltips.settings.psn_npid);
 
-	m_emu_settings->EnhanceLineEdit(ui->edit_rpcnhost, emu_settings::RPCNHost);
-	SubscribeTooltip(ui->gb_edit_rpcnhost, tooltips.settings.rpcn_host);
+	m_emu_settings->EnhanceLineEdit(ui->edit_rpcnhost, emu_settings_type::RPCNHost);
+	SubscribeTooltip(ui->edit_rpcnhost, tooltips.settings.rpcn_host);
 
-	m_emu_settings->EnhanceLineEdit(ui->edit_rpcnpassword, emu_settings::RPCNPassword);
-	SubscribeTooltip(ui->gb_edit_rpcnpassword, tooltips.settings.rpcn_password);
+	m_emu_settings->EnhanceLineEdit(ui->edit_rpcnpassword, emu_settings_type::RPCNPassword);
+	SubscribeTooltip(ui->edit_rpcnpassword, tooltips.settings.rpcn_password);
 
-	m_emu_settings->EnhanceLineEdit(ui->edit_swaps, emu_settings::IpSwapList);
+	m_emu_settings->EnhanceLineEdit(ui->edit_swaps, emu_settings_type::IpSwapList);
 	SubscribeTooltip(ui->gb_edit_swaps, tooltips.settings.dns_swap);
 
 	// Comboboxes

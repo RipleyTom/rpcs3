@@ -8,6 +8,7 @@
 #include <vector>
 #include <utility>
 #include <functional>
+#include <queue>
 
 // Error codes
 enum sys_net_error : s32

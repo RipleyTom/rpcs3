@@ -6,6 +6,8 @@
 
 #include <atomic>
 
+extern logs::channel sceNp2;
+
 // Error codes
 enum SceNpMatching2Error : u32
 {

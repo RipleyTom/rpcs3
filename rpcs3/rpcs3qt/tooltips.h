@@ -180,11 +180,14 @@ public:
 
 		// network
 
-		const QString net_status = tr("If set to Connected, RPCS3 will allow programs to use your internet connection.");
-		const QString psn_status = tr("If set to Simulated, RPCS3 will fake PSN connection as best as it can.");
-		const QString dns        = tr("DNS used to resolve hostnames by applications.");
-		const QString psn_npid   = tr("Identifier representing your PSN account.");
-		const QString dns_swap   = tr("DNS Swap List.");
+		const QString net_status    = tr("If set to Connected, RPCS3 will allow programs to use your internet connection.");
+		const QString psn_status    = tr("If set to Simulated, RPCS3 will fake PSN connection as best as it can.");
+		const QString dns           = tr("DNS used to resolve hostnames by applications.");
+		const QString psn_npid      = tr("Identifier representing your PSN account.");
+		const QString psn_name      = tr("Public name");
+		const QString rpcn_host     = tr("Host(IP/HOST:PORT) of the RPCN Server");
+		const QString rpcn_password = tr("RPCN Password");
+		const QString dns_swap      = tr("DNS Swap List.");
 
 		// system
 

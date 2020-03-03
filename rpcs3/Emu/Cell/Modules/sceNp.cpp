@@ -15,11 +15,10 @@
 
 LOG_CHANNEL(sceNp);
 
-template<>
+template <>
 void fmt_class_string<SceNpError>::format(std::string& out, u64 arg)
 {
-	format_enum(out, arg, [](auto error)
-	{
+	format_enum(out, arg, [](auto error) {
 		switch (error)
 		{
 			STR_CASE(SCE_NP_ERROR_NOT_INITIALIZED);
@@ -892,7 +891,7 @@ error_code sceNpBasicMarkMessageAsUsed(SceNpBasicMessageId msgId)
 		return SCE_NP_BASIC_ERROR_NOT_INITIALIZED;
 	}
 
-	//if (!msgId > ?)
+	//	if (!msgId > ?)
 	//{
 	//	return SCE_NP_BASIC_ERROR_INVALID_ARGUMENT;
 	//}
@@ -2350,7 +2349,7 @@ error_code sceNpLookupTitleSmallStorage(s32 transId, vm::ptr<void> data, u64 max
 		return SCE_NP_COMMUNITY_ERROR_INVALID_ARGUMENT;
 	}
 
-	//if (something > maxSize)
+	//	if (something > maxSize)
 	//{
 	//	return SCE_NP_COMMUNITY_ERROR_BODY_TOO_LARGE;
 	//}
@@ -2413,6 +2412,8 @@ error_code sceNpManagerRegisterCallback(vm::ptr<SceNpManagerCallback> callback, 
 		return SCE_NP_ERROR_INVALID_ARGUMENT;
 	}
 
+	nph->manager_cb = callback;
+
 	return CELL_OK;
 }
 
@@ -2426,6 +2427,8 @@ error_code sceNpManagerUnregisterCallback()
 	{
 		return SCE_NP_ERROR_NOT_INITIALIZED;
 	}
+
+	nph->manager_cb.set(0);
 
 	return CELL_OK;
 }
@@ -4528,6 +4531,15 @@ error_code sceNpSignalingGetLocalNetInfo(u32 ctx_id, vm::ptr<SceNpSignalingNetIn
 		// TODO: check info->size
 		return SCE_NP_SIGNALING_ERROR_INVALID_ARGUMENT;
 	}
+
+	info->local_addr  = nph->get_local_ip_addr();
+	info->mapped_addr = nph->get_public_ip_addr();
+
+	// Pure speculation below
+	info->nat_status    = 0;
+	info->upnp_status   = 0;
+	info->npport_status = 0;
+	info->npport        = 3658;
 
 	return CELL_OK;
 }

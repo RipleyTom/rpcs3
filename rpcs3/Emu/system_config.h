@@ -263,6 +263,9 @@ struct cfg_root : cfg::node
 
 		cfg::_enum<np_psn_status> psn_status{this, "PSN status", np_psn_status::disabled};
 		cfg::string psn_npid{this, "NPID", ""};
+
+		cfg::string rpcn_host{this, "RPCN host", ""};
+		cfg::string rpcn_password{this, "RPCN Password", ""};
 	} net{this};
 
 	struct node_misc : cfg::node

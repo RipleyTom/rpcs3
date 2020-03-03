@@ -12,7 +12,7 @@ target_link_libraries(rpcs3_emu
 	PRIVATE
 		3rdparty::zlib 3rdparty::yaml-cpp
 	PUBLIC
-		3rdparty::libevdev)
+		3rdparty::libevdev 3rdparty::flatbuffers)
 
 
 find_package(Threads REQUIRED)
@@ -362,7 +362,10 @@ target_sources(rpcs3_emu PRIVATE
 
 # Np
 target_sources(rpcs3_emu PRIVATE
+	NP/fb_helpers.cpp
 	NP/np_handler.cpp
+	NP/rpcn_client.cpp
+	NP/np_structs_extra.cpp
 )
 
 # Memory

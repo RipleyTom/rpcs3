@@ -20,8 +20,7 @@ LOG_CHANNEL(cellNetCtl);
 template <>
 void fmt_class_string<CellNetCtlError>::format(std::string& out, u64 arg)
 {
-	format_enum(out, arg, [](auto error)
-	{
+	format_enum(out, arg, [](auto error) {
 		switch (error)
 		{
 			STR_CASE(CELL_NET_CTL_ERROR_NOT_INITIALIZED);
@@ -78,8 +77,7 @@ void fmt_class_string<CellNetCtlError>::format(std::string& out, u64 arg)
 template <>
 void fmt_class_string<CellNetCtlState>::format(std::string& out, u64 arg)
 {
-	format_enum(out, arg, [](CellNetCtlState value)
-	{
+	format_enum(out, arg, [](CellNetCtlState value) {
 		switch (value)
 		{
 		case CELL_NET_CTL_STATE_Disconnected: return "Disconnected";
@@ -213,7 +211,7 @@ error_code cellNetCtlGetInfo(s32 code, vm::ptr<CellNetCtlInfo> info)
 	}
 	else if (code == CELL_NET_CTL_INFO_IP_ADDRESS)
 	{
-		strcpy_trunc(info->ip_address, nph->get_ip());
+		strcpy_trunc(info->ip_address, np_handler::ip_to_string(nph->get_local_ip_addr()));
 	}
 	else if (code == CELL_NET_CTL_INFO_NETMASK)
 	{
@@ -252,6 +250,7 @@ error_code cellNetCtlNetStartDialogLoadAsync(vm::cptr<CellNetCtlNetStartDialogPa
 	{
 		return CELL_NET_CTL_ERROR_INVALID_SIZE;
 	}
+	
 
 	// This is a hack for Diva F 2nd that registers the sysutil callback after calling this function.
 	g_fxo->init<named_thread>("Delayed cellNetCtlNetStartDialogLoadAsync messages", []()
@@ -306,7 +305,6 @@ error_code cellNetCtlNetStartDialogUnloadAsync(vm::ptr<CellNetCtlNetStartDialogR
 	result->result = nph->get_net_status() == CELL_NET_CTL_STATE_IPObtained ? 0 : CELL_NET_CTL_ERROR_DIALOG_CANCELED;
 
 	sysutil_send_system_cmd(CELL_SYSUTIL_NET_CTL_NETSTART_UNLOADED, 0);
-
 	return CELL_OK;
 }
 
@@ -397,8 +395,7 @@ error_code cellGameUpdateTerm()
 error_code cellGameUpdateCheckStartAsync(vm::cptr<CellGameUpdateParam> param, vm::ptr<CellGameUpdateCallback> cb_func, vm::ptr<void> userdata)
 {
 	cellNetCtl.todo("cellGameUpdateCheckStartAsync(param=*0x%x, cb_func=*0x%x, userdata=*0x%x)", param, cb_func, userdata);
-	sysutil_register_cb([=](ppu_thread& ppu) -> s32
-	{
+	sysutil_register_cb([=](ppu_thread& ppu) -> s32 {
 		cb_func(ppu, CELL_GAMEUPDATE_RESULT_STATUS_NO_UPDATE, CELL_OK, userdata);
 		return CELL_OK;
 	});
@@ -408,8 +405,7 @@ error_code cellGameUpdateCheckStartAsync(vm::cptr<CellGameUpdateParam> param, vm
 error_code cellGameUpdateCheckFinishAsync(vm::ptr<CellGameUpdateCallback> cb_func, vm::ptr<void> userdata)
 {
 	cellNetCtl.todo("cellGameUpdateCheckFinishAsync(cb_func=*0x%x, userdata=*0x%x)", cb_func, userdata);
-	sysutil_register_cb([=](ppu_thread& ppu) -> s32
-	{
+	sysutil_register_cb([=](ppu_thread& ppu) -> s32 {
 		cb_func(ppu, CELL_GAMEUPDATE_RESULT_STATUS_FINISHED, CELL_OK, userdata);
 		return CELL_OK;
 	});
@@ -419,8 +415,7 @@ error_code cellGameUpdateCheckFinishAsync(vm::ptr<CellGameUpdateCallback> cb_fun
 error_code cellGameUpdateCheckStartWithoutDialogAsync(vm::ptr<CellGameUpdateCallback> cb_func, vm::ptr<void> userdata)
 {
 	cellNetCtl.todo("cellGameUpdateCheckStartWithoutDialogAsync(cb_func=*0x%x, userdata=*0x%x)", cb_func, userdata);
-	sysutil_register_cb([=](ppu_thread& ppu) -> s32
-	{
+	sysutil_register_cb([=](ppu_thread& ppu) -> s32 {
 		cb_func(ppu, CELL_GAMEUPDATE_RESULT_STATUS_NO_UPDATE, CELL_OK, userdata);
 		return CELL_OK;
 	});
@@ -467,9 +462,8 @@ error_code cellGameUpdateCheckStartWithoutDialogAsyncEx(vm::ptr<CellGameUpdateCa
 	return CELL_OK;
 }
 
-
-DECLARE(ppu_module_manager::cellNetCtl)("cellNetCtl", []()
-{
+DECLARE(ppu_module_manager::cellNetCtl)
+("cellNetCtl", []() {
 	REG_FUNC(cellNetCtl, cellNetCtlInit);
 	REG_FUNC(cellNetCtl, cellNetCtlTerm);
 

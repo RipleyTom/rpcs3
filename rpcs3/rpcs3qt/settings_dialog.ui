@@ -1710,6 +1710,64 @@
              </widget>
             </item>
             <item>
+             <widget class="QGroupBox" name="gb_rpcn">
+              <property name="title">
+               <string>RPCN Server</string>
+              </property>
+              <layout class="QVBoxLayout" name="gb_rpcn_layout">
+               <item>
+                <layout class="QHBoxLayout" name="gb_rpcn_host_layout">
+                 <item>
+                  <widget class="QLabel" name="label_rpcn_host">
+                   <property name="text">
+                    <string>Host:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLineEdit" name="edit_rpcnhost">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="gb_rpcn_password_layout">
+                 <item>
+                  <widget class="QLabel" name="label_7">
+                   <property name="text">
+                    <string>Password:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLineEdit" name="edit_rpcnpassword">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_createrpcnaccount">
+                 <property name="text">
+                  <string>Create RPCN Account</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
              <spacer name="networkTabSpacerRight">
               <property name="orientation">
                <enum>Qt::Vertical</enum>

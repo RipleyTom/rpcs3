@@ -74,6 +74,9 @@ else()
 	add_library(3rdparty_7z INTERFACE)
 endif()
 
+add_library(3rdparty_flatbuffers INTERFACE)
+target_include_directories(3rdparty_flatbuffers INTERFACE flatbuffers/include)
+
 # libPNG
 # Select the version of libpng to use, default is builtin
 if (NOT USE_SYSTEM_LIBPNG)
@@ -430,6 +433,7 @@ endif()
 add_library(3rdparty::libusb ALIAS usb-1.0-static)
 add_library(3rdparty::zlib ALIAS 3rdparty_zlib)
 add_library(3rdparty::7z ALIAS 3rdparty_7z)
+add_library(3rdparty::flatbuffers ALIAS 3rdparty_flatbuffers)
 add_library(3rdparty::pugixml ALIAS pugixml)
 add_library(3rdparty::yaml-cpp ALIAS yaml-cpp)
 add_library(3rdparty::xxhash ALIAS xxhash)

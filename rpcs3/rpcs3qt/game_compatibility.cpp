@@ -7,6 +7,8 @@
 
 #include <thread>
 
+#define CURL_STATICLIB
+#define NOMINMAX
 #include <curl/curl.h>
 
 LOG_CHANNEL(compat_log, "Compat");

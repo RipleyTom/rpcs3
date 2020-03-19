@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "stdafx.h"
+#define NOMINMAX
+#define CURL_STATICLIB
 #include <curl/curl.h>
 #include <QObject>
 #include <QByteArray>

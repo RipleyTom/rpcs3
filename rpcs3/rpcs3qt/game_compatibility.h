@@ -6,6 +6,7 @@
 #include <QJsonObject>
 
 #define NOMINMAX
+#define CURL_STATICLIB
 #include <curl/curl.h>
 
 class gui_settings;

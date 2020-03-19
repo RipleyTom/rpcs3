@@ -5,6 +5,7 @@
 #include <QPainter>
 #include <QJsonObject>
 
+#define NOMINMAX
 #include <curl/curl.h>
 
 class gui_settings;

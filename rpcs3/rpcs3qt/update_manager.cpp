@@ -13,8 +13,6 @@
 #include <iomanip>
 #include <thread>
 
-#include <curl/curl.h>
-
 #if defined(_WIN32)
 #define NOMINMAX
 #include <windows.h>
@@ -32,6 +30,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #endif
+
+#include <curl/curl.h>
 
 LOG_CHANNEL(update_log, "UPDATER");
 
@@ -55,12 +55,12 @@ size_t update_manager::update_buffer(char* data, size_t size)
 
 	const auto old_size = m_curl_buf.size();
 	const auto new_size = old_size + size;
-	m_curl_buf.resize(new_size);
+	m_curl_buf.resize(static_cast<int>(new_size));
 	memcpy(m_curl_buf.data() + old_size, data, size);
 
 	if (m_progress_dialog && m_update_dialog)
 	{
-		m_progress_dialog->setValue(new_size);
+		m_progress_dialog->setValue(static_cast<size_t>(new_size));
 	}
 
 	return size;

@@ -14,7 +14,7 @@ LOG_CHANNEL(compat_log, "Compat");
 constexpr auto qstr = QString::fromStdString;
 inline std::string sstr(const QString& _in) { return _in.toStdString(); }
 
-size_t curl_write_cb_compat(char* ptr, size_t size, size_t nmemb, void* userdata)
+size_t curl_write_cb_compat(char* ptr, size_t /*size*/, size_t nmemb, void* userdata)
 {
 	game_compatibility* gm_cmp = reinterpret_cast<game_compatibility*>(userdata);
 	return gm_cmp->update_buffer(ptr, nmemb);
@@ -39,7 +39,7 @@ size_t game_compatibility::update_buffer(char* data, size_t size)
 
 	const auto old_size = m_curl_buf.size();
 	const auto new_size = old_size + size;
-	m_curl_buf.resize(new_size);
+	m_curl_buf.resize(static_cast<int>(new_size));
 	memcpy(m_curl_buf.data() + old_size, data, size);
 
 	if (m_actual_dwnld_size < 0)
@@ -52,7 +52,7 @@ size_t game_compatibility::update_buffer(char* data, size_t size)
 	}
 
 	if (m_progress_dialog)
-		m_progress_dialog->setValue(new_size);
+		m_progress_dialog->setValue(static_cast<int>(new_size));
 	
 	return size;
 }

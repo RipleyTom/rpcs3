@@ -9,9 +9,10 @@
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QThread>
+
 #include <sstream>
 #include <iomanip>
-#include <thread>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -254,7 +255,7 @@ bool update_manager::handle_json(bool automatic)
 
 	m_curl_buf.clear();
 
-	std::thread([this, automatic]
+	QThread::create([this, automatic]
 	{
 		bool result_rpcs3 = false;
 
@@ -276,7 +277,7 @@ bool update_manager::handle_json(bool automatic)
 				m_progress_dialog = nullptr;
 			}
 		}
-	}).detach();
+	});
 
 	return true;
 }

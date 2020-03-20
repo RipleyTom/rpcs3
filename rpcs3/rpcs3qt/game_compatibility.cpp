@@ -4,8 +4,7 @@
 
 #include <QMessageBox>
 #include <QJsonDocument>
-
-#include <thread>
+#include <QThread>
 
 #define CURL_STATICLIB
 #define NOMINMAX
@@ -175,9 +174,9 @@ void game_compatibility::RequestCompatibility(bool online)
 	connect(m_progress_dialog, &QProgressDialog::canceled, [this] { m_curl_abort = true; });
 	connect(m_progress_dialog, &QProgressDialog::finished, m_progress_dialog, &QProgressDialog::deleteLater);
 
-	std::thread([&]
+	QThread::create([&]
 	{
-		auto result = curl_easy_perform(m_curl);
+		const auto result = curl_easy_perform(m_curl);
 
 		if (m_progress_dialog)
 		{
@@ -218,7 +217,7 @@ void game_compatibility::RequestCompatibility(bool online)
 
 			compat_log.success("Wrote database to file: %s", sstr(m_filepath));
 		}
-	}).detach();
+	});
 
 	// We want to retrieve a new database, therefore refresh gamelist and indicate that
 	Q_EMIT DownloadStarted();

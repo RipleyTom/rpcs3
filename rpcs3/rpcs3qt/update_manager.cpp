@@ -36,7 +36,7 @@
 
 LOG_CHANNEL(update_log, "UPDATER");
 
-size_t curl_write_cb(char* ptr, size_t size, size_t nmemb, void* userdata)
+size_t curl_write_cb(char* ptr, size_t /*size*/, size_t nmemb, void* userdata)
 {
 	update_manager* upd_mgr = reinterpret_cast<update_manager*>(userdata);
 	return upd_mgr->update_buffer(ptr, nmemb);
@@ -61,7 +61,7 @@ size_t update_manager::update_buffer(char* data, size_t size)
 
 	if (m_progress_dialog && m_update_dialog)
 	{
-		m_progress_dialog->setValue(static_cast<size_t>(new_size));
+		m_progress_dialog->setValue(static_cast<int>(new_size));
 	}
 
 	return size;
@@ -108,7 +108,7 @@ void update_manager::check_for_updates(bool automatic, QWidget* parent)
 
 	if (!result_json && !m_curl_abort)
 	{
-		if(!automatic)
+		if (!automatic)
 		{
 			QMessageBox::warning(m_parent, tr("Auto-updater"), tr("An error occurred during the auto-updating process.\nCheck the log for more information."));
 		}
@@ -274,7 +274,7 @@ bool update_manager::handle_json(bool automatic)
 		
 		if (!result_rpcs3 && !m_curl_abort)
 		{
-			if(!automatic)
+			if (!automatic)
 			{
 				QMessageBox::warning(m_parent, tr("Auto-updater"), tr("An error occurred during the auto-updating process.\nCheck the log for more information."));
 			}

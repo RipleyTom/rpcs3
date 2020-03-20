@@ -106,9 +106,13 @@ void update_manager::check_for_updates(bool automatic, QWidget* parent)
 		result_json = handle_json(automatic);
 	}
 
-	if (!automatic && !result_json && !m_curl_abort)
+	if (!result_json && !m_curl_abort)
 	{
-		QMessageBox::warning(m_parent, tr("Auto-updater"), tr("An error occurred during the auto-updating process.\nCheck the log for more information."));
+		if(!automatic)
+		{
+			QMessageBox::warning(m_parent, tr("Auto-updater"), tr("An error occurred during the auto-updating process.\nCheck the log for more information."));
+		}
+
 		if (m_progress_dialog)
 		{
 			m_progress_dialog->close();
@@ -268,9 +272,13 @@ bool update_manager::handle_json(bool automatic)
 			result_rpcs3 = handle_rpcs3();
 		}
 		
-		if (!automatic && !result_rpcs3 && !m_curl_abort)
+		if (!result_rpcs3 && !m_curl_abort)
 		{
-			QMessageBox::warning(m_parent, tr("Auto-updater"), tr("An error occurred during the auto-updating process.\nCheck the log for more information."));
+			if(!automatic)
+			{
+				QMessageBox::warning(m_parent, tr("Auto-updater"), tr("An error occurred during the auto-updating process.\nCheck the log for more information."));
+			}
+
 			if (m_progress_dialog)
 			{
 				m_progress_dialog->close();

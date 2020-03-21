@@ -11,6 +11,7 @@ environment:
   VULKAN_SDK: "C:\\VulkanSDK\\1.1.126.0"
   VULKAN_SDK_URL: https://sdk.lunarg.com/sdk/download/1.1.126.0/windows/VulkanSDK-1.1.126.0-Installer.exe
   VULKAN_SDK_SHA: ee86f25580b550390ce46508415e744d62e87e9c0de6cd299998058253a2a4ba
+  CACERT_PEM: https://curl.haxx.se/ca/cacert.pem
 
 cache:
 - glslang.7z -> appveyor.yml
@@ -105,6 +106,9 @@ after_build:
       $db | convertto-json -compress | out-file compat_database.dat -encoding utf8
     }
     copy-item compat_database.dat .\bin\GuiConfigs\compat_database.dat
+
+- ps: | # Download cacert.pem for SSL certificate validation
+    irm $env:CACERT_PEM -outfile .\bin\cacert.pem
 
 - ps: | # package artifacts
     7z a -m0=LZMA2 -mx9 $env:BUILD .\bin\*

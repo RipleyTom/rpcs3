@@ -909,7 +909,7 @@ void np_handler::notif_p2p_established(std::vector<u8>& data)
 	in_addr da_addr;
 	da_addr.s_addr = addr_p2p;
 
-	rpcn_log.error("P2P Established(Room Id: %d | Member Id: %d): Address: [%s:%d]", room_id, member_id, inet_ntoa(da_addr), std::bit_cast<u16, be_t<u16>>(port_p2p));
+	rpcn_log.notice("P2P Established(Room Id: %d | Member Id: %d): Address: [%s:%d]", room_id, member_id, inet_ntoa(da_addr), std::bit_cast<u16, be_t<u16>>(port_p2p));
 }
 
 const signaling_info& np_handler::get_peer_infos(u16 context_id, u64 room_id, u16 member_id)
@@ -1146,13 +1146,13 @@ u32 np_handler::add_players_to_history(vm::cptr<SceNpId> npids, u32 count)
 {
 	const u32 req_id = get_req_id(0);
 
-	if (basic_handler)
-	{
-		sysutil_register_cb([basic_handler = this->basic_handler, req_id, basic_handler_arg = this->basic_handler_arg](ppu_thread& cb_ppu) -> s32 {
-			basic_handler(cb_ppu, SCE_NP_BASIC_EVENT_ADD_PLAYERS_HISTORY_RESULT, 0, req_id, basic_handler_arg);
-			return 0;
-		});
-	}
+	// if (basic_handler)
+	// {
+	// 	sysutil_register_cb([basic_handler = this->basic_handler, req_id, basic_handler_arg = this->basic_handler_arg](ppu_thread& cb_ppu) -> s32 {
+	// 		basic_handler(cb_ppu, SCE_NP_BASIC_EVENT_ADD_PLAYERS_HISTORY_RESULT, 0, req_id, basic_handler_arg);
+	// 		return 0;
+	// 	});
+	// }
 
 	return req_id;
 }

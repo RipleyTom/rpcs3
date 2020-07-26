@@ -1142,7 +1142,12 @@ error_code sceNpBasicAddPlayersHistoryAsync(vm::cptr<SceNpId> npids, u32 count, 
 		return SCE_NP_BASIC_ERROR_EXCEEDS_MAX;
 	}
 
-	*reqId = nph->add_players_to_history(npids, count);
+	auto req_id = nph->add_players_to_history(npids, count);
+
+	if (reqId)
+	{
+		*reqId = req_id;
+	}
 
 	return CELL_OK;
 }

@@ -226,9 +226,14 @@ bool rpcn_client::connect(const std::string& host)
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
+#ifdef _WIN32
+	u32 timeout = 1000;
+#else
 	struct timeval timeout;
 	timeout.tv_sec  = 1;
 	timeout.tv_usec = 0;
+#endif
+
 	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&timeout), sizeof(timeout)) < 0)
 	{
 		rpcn_log.fatal("Failed to setsockopt!");

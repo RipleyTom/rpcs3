@@ -1739,7 +1739,7 @@
                <item>
                 <layout class="QHBoxLayout" name="gb_rpcn_password_layout">
                  <item>
-                  <widget class="QLabel" name="label_7">
+                  <widget class="QLabel" name="label_password">
                    <property name="text">
                     <string>Password:</string>
                    </property>

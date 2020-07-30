@@ -113,7 +113,7 @@ s32 sceNpCommerce2DestroyCtx(u32 ctx_id)
 	return CELL_OK;
 }
 
-s32 sceNpCommerce2EmptyStoreCheckStart(u32 ctx_id, u32 store_check_type, vm::cptr<char> target_id)
+s32 sceNpCommerce2EmptyStoreCheckStart(u32 ctx_id, s32 store_check_type, vm::cptr<char> target_id)
 {
 	sceNpCommerce2.warning("sceNpCommerce2EmptyStoreCheckStart(ctx_id=%d, store_check_type=%d, target_id=*0x%x(%s))", ctx_id, store_check_type, target_id, target_id);
 

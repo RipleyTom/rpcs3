@@ -879,6 +879,7 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 
 	m_emu_settings->EnhanceLineEdit(ui->edit_npid, emu_settings_type::PSNNPID);
 	SubscribeTooltip(ui->gb_edit_npid, tooltips.settings.psn_npid);
+	ui->edit_npid->setValidator(new QRegExpValidator(QRegExp("^[a-zA-Z0-9_\\-]*$"), this));
 
 	m_emu_settings->EnhanceLineEdit(ui->edit_rpcnhost, emu_settings_type::RPCNHost);
 	SubscribeTooltip(ui->edit_rpcnhost, tooltips.settings.rpcn_host);
@@ -906,13 +907,32 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 		const auto npid = ui->edit_npid->text().toStdString();
 		const auto password = ui->edit_rpcnpassword->text().toStdString();
 
+		auto validate = [](const std::string& input) -> bool
+		{
+			if (input.length() < 3 || input.length() > 16)
+				return false;
+			
+			for (const auto c : input)
+			{
+				if (!std::isalnum(c) && c != '-' && c != '_')
+					return false;
+			}
+			return true;
+		};
+
 		if (!npid.size() || !password.size())
 		{
 			QMessageBox::critical(this, tr("Wrong input"), tr("You need to enter a username and a password!"), QMessageBox::Ok);
 			return;
 		}
 
-		const auto online_name = "RPCS3's " + npid;
+		if (!validate(npid))
+		{
+			QMessageBox::critical(this, tr("Invalid character"), tr("NPID must be between 3 and 16 character and can only contain '-', '_' or an alphanumeric character."), QMessageBox::Ok);
+			return;
+		}
+
+		const auto online_name = npid;
 		const auto avatar_url  = "https://i.imgur.com/AfWIyQP.jpg";
 
 		std::thread([](const std::shared_ptr<rpcn_client> rpcn) {

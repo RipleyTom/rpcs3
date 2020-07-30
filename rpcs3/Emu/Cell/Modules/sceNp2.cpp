@@ -311,7 +311,7 @@ error_code sceNpMatching2LeaveLobby(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -381,7 +381,7 @@ error_code sceNpMatching2GetLobbyMemberDataInternalList(SceNpMatching2ContextId 
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -444,7 +444,7 @@ error_code sceNpMatching2SetUserInfo(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -478,7 +478,7 @@ error_code sceNpMatching2GetLobbyMemberDataInternal(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -525,7 +525,7 @@ error_code sceNpMatching2CreateServerContext(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -627,7 +627,7 @@ error_code sceNpMatching2SendRoomMessage(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -647,7 +647,7 @@ error_code sceNpMatching2JoinLobby(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -667,7 +667,7 @@ error_code sceNpMatching2GetRoomMemberDataExternalList(SceNpMatching2ContextId c
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -756,7 +756,7 @@ error_code sceNpMatching2SendLobbyChatMessage(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -856,7 +856,7 @@ error_code sceNpMatching2KickoutRoomMember(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -902,7 +902,7 @@ error_code sceNpMatching2SetSignalingOptParam(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -943,7 +943,7 @@ error_code sceNpMatching2SendRoomChatMessage(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1158,7 +1158,7 @@ error_code sceNpMatching2GetUserInfoList(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1178,7 +1178,7 @@ error_code sceNpMatching2GetRoomMemberDataInternal(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1198,7 +1198,7 @@ error_code sceNpMatching2SetRoomMemberDataInternal(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1218,7 +1218,7 @@ error_code sceNpMatching2JoinProhibitiveRoom(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1252,7 +1252,7 @@ error_code sceNpMatching2DeleteServerContext(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1329,7 +1329,7 @@ error_code sceNpMatching2GetRoomDataExternalList(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1385,7 +1385,7 @@ error_code sceNpMatching2GetLobbyInfoList(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1420,7 +1420,7 @@ error_code sceNpMatching2SendLobbyInvitation(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}
@@ -1470,7 +1470,7 @@ error_code sceNpMatching2SetLobbyMemberDataInternal(
 		return SCE_NP_MATCHING2_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!reqParam || !optParam || !assignedReqId)
+	if (!reqParam || !assignedReqId)
 	{
 		return SCE_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
 	}

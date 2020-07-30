@@ -48,7 +48,7 @@ void np_handler::UserInfo2_to_SceNpUserInfo2(const UserInfo2* user, SceNpUserInf
 		user_info->onlineName.set(allocate(sizeof(SceNpOnlineName)));
 		memcpy(user_info->onlineName->data, user->onlineName()->c_str(), std::min(sizeof(user_info->onlineName->data), static_cast<std::size_t>(user->onlineName()->size())));
 	}
-	if (user->onlineName())
+	if (user->avatarUrl())
 	{
 		user_info->avatarUrl.set(allocate(sizeof(SceNpAvatarUrl)));
 		memcpy(user_info->avatarUrl->data, user->avatarUrl()->c_str(), std::min(sizeof(user_info->avatarUrl->data), static_cast<std::size_t>(user->avatarUrl()->size())));

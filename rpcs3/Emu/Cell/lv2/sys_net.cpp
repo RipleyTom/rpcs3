@@ -287,7 +287,7 @@ struct nt_p2p_port
 		const auto ret_bind       = ::bind(p2p_socket, reinterpret_cast<sockaddr*>(&p2p_saddr), sizeof(p2p_saddr));
 
 		if (ret_bind == -1)
-			sys_net.fatal("Failed to bind DGRAM socket to %d for P2P!");
+			sys_net.fatal("Failed to bind DGRAM socket to %d for P2P!", port);
 
 		sys_net.notice("P2P port %d was bound!", port);
 	}

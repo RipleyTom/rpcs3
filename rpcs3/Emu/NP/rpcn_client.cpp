@@ -31,7 +31,7 @@
 #include <netdb.h>
 #endif
 
-LOG_CHANNEL(rpcn_log);
+LOG_CHANNEL(rpcn_log, "rpcn");
 
 #define RPCN_PROTOCOL_VERSION 5
 #define RPCN_HEADER_SIZE 9
@@ -507,21 +507,29 @@ std::unordered_map<u32, std::pair<u16, std::vector<u8>>> rpcn_client::get_replie
 	return ret_replies;
 }
 
-bool rpcn_client::get_reply(u32 expected_id, std::vector<u8>& data)
+bool rpcn_client::get_reply(const u32 expected_id, std::vector<u8>& data)
 {
+	auto check_for_reply = [this, expected_id, &data]() -> bool
+	{
+		std::lock_guard lock(mutex_replies_sync);
+		if (auto r = replies_sync.find(expected_id); r != replies_sync.end())
+		{
+			data = std::move(r->second.second);
+			replies_sync.erase(r);
+			return true;
+		}
+		return false;
+	};
+
 	while (connected && !is_abort())
 	{
-		{
-			std::lock_guard lock(mutex_replies_sync);
-			if (auto r = replies_sync.find(expected_id); r != replies_sync.end())
-			{
-				data = std::move(r->second.second);
-				replies_sync.erase(r);
-				return true;
-			}
-		}
+		if (check_for_reply())
+			return true;
 		std::this_thread::sleep_for(5ms);
 	}
+
+	if (check_for_reply())
+		return true;
 
 	return false;
 }

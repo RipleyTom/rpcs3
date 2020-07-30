@@ -928,7 +928,7 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 
 		if (!validate(npid))
 		{
-			QMessageBox::critical(this, tr("Invalid character"), tr("NPID must be between 3 and 16 character and can only contain '-', '_' or an alphanumeric character."), QMessageBox::Ok);
+			QMessageBox::critical(this, tr("Invalid character"), tr("NPID must be between 3 and 16 characters and can only contain '-', '_' or alphanumeric characters."), QMessageBox::Ok);
 			return;
 		}
 
@@ -951,7 +951,7 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 
 		if (!rpcn->create_user(npid, password, online_name, avatar_url))
 		{
-			QMessageBox::critical(this, tr("Error Creating Account"), tr("Failed to create the account(username exists?)"), QMessageBox::Ok);
+			QMessageBox::critical(this, tr("Error Creating Account"), tr("Failed to create the account (username exists?)"), QMessageBox::Ok);
 			rpcn->abort();
 			return;
 		}

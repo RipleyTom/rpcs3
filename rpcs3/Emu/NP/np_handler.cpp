@@ -11,6 +11,7 @@
 #include "Emu/IdManager.h"
 #include "np_structs_extra.h"
 #include "Emu/System.h"
+#include "Emu/rpcn_config.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -27,11 +28,13 @@ LOG_CHANNEL(sys_net);
 LOG_CHANNEL(sceNp2);
 LOG_CHANNEL(sceNp);
 
-LOG_CHANNEL(rpcn_log);
-LOG_CHANNEL(nph_log);
+LOG_CHANNEL(rpcn_log, "rpcn");
+LOG_CHANNEL(nph_log, "NPHandler");
 
 np_handler::np_handler()
 {
+	g_cfg_rpcn.load();
+
 	is_connected  = (g_cfg.net.net_active == np_internet_status::enabled);
 	is_psn_active = (g_cfg.net.psn_status >= np_psn_status::fake);
 
@@ -47,10 +50,10 @@ np_handler::np_handler()
 		// Convert dns address
 		// TODO: recover actual user dns through OS specific API
 		in_addr conv{};
-		if (!inet_pton(AF_INET, g_cfg.net.dns.to_secret_string().c_str(), &conv))
+		if (!inet_pton(AF_INET, g_cfg.net.dns.to_string().c_str(), &conv))
 		{
 			// Do not set to disconnected on invalid IP just error and continue using default(google's 8.8.8.8)
-			nph_log.error("Provided IP(%s) address for DNS is invalid!", g_cfg.net.dns.to_secret_string());
+			nph_log.error("Provided IP(%s) address for DNS is invalid!", g_cfg.net.dns.to_string());
 		}
 		else
 		{
@@ -58,7 +61,7 @@ np_handler::np_handler()
 		}
 
 		// Init switch map for dns
-		auto swaps = fmt::split(g_cfg.net.swap_list.to_secret_string(), {"&&"});
+		auto swaps = fmt::split(g_cfg.net.swap_list.to_string(), {"&&"});
 		for (std::size_t i = 0; i < swaps.size(); i++)
 		{
 			auto host_and_ip = fmt::split(swaps[i], {"="});
@@ -183,8 +186,8 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 
 	if (g_cfg.net.psn_status >= np_psn_status::fake)
 	{
-		std::string s_npid = g_cfg.net.psn_npid.to_secret_string();
-		ASSERT(s_npid != ""); // It should be generated in settings window if empty
+		std::string s_npid = g_cfg_rpcn.get_npid();
+		ASSERT(s_npid != ""); // It should have been generated before this
 
 		std::memcpy(npid.handle.data, s_npid.c_str(), std::min(sizeof(npid.handle.data), s_npid.size()));
 		npid.reserved[0] = 1;
@@ -206,14 +209,14 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 			break;
 		
 		// Connect RPCN client
-		if (!rpcn.connect(g_cfg.net.rpcn_host.to_secret_string()))
+		if (!rpcn.connect(g_cfg_rpcn.get_host()))
 		{
 			rpcn_log.error("Connection to RPCN Failed!");
 			is_psn_active = false;
 			return;
 		}
 
-		if (!rpcn.login(g_cfg.net.psn_npid, g_cfg.net.rpcn_password.to_secret_string()))
+		if (!rpcn.login(g_cfg_rpcn.get_npid(), g_cfg_rpcn.get_password()))
 		{
 			rpcn_log.error("RPCN login attempt failed!");
 			is_psn_active = false;
@@ -286,6 +289,8 @@ vm::addr_t np_handler::allocate(u32 size)
 	mpool_avail -= alloc_size;
 
 	memset((static_cast<u8*>(mpool.get_ptr())) + last_free, 0, alloc_size);
+
+	sceNp.trace("Allocation off:%d size:%d psize:%d, pavail:%d", last_free, alloc_size, mpool_size, mpool_avail);
 
 	return vm::cast(mpool.addr() + last_free);
 }

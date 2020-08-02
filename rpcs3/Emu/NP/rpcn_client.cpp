@@ -1014,7 +1014,7 @@ bool rpcn_client::is_error(ErrorType err) const
 
 bool rpcn_client::error_and_disconnect(const std::string& error_msg)
 {
-	rpcn_log.fatal("%s", error_msg);
+	rpcn_log.error("%s", error_msg);
 	disconnect();
 	return false;
 }

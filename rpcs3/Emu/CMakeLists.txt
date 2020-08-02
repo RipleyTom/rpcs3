@@ -3,6 +3,7 @@
 	System.cpp
 	system_config.cpp
 	system_config_types.cpp
+	rpcn_config.cpp
 	VFS.cpp
 	GDB.cpp
 	title.cpp

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "np_handler.h"
 
-extern logs::channel rpcn_log;
+LOG_CHANNEL(rpcn_log, "rpcn");
 
 void np_handler::BinAttr_to_SceNpMatching2BinAttr(const flatbuffers::Vector<flatbuffers::Offset<BinAttr>>* fb_attr, vm::ptr<SceNpMatching2BinAttr> binattr_info)
 {

@@ -440,25 +440,6 @@ namespace cfg
 		}
 	};
 
-	class secret_string final : public string
-	{
-	public:
-		secret_string(node* owner, std::string name, std::string def = {}, bool dynamic = false)
-			: string(owner, name, def, dynamic)
-		{
-		}
-
-		std::string to_string() const override
-		{
-			return std::string("Himitsu!");
-		}
-
-		std::string to_secret_string() const
-		{
-			return string::to_string();
-		}
-	};
-
 	// Simple set entry (TODO: template for various types)
 	class set_entry final : public _base
 	{

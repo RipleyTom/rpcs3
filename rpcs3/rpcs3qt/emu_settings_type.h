@@ -127,9 +127,6 @@ enum class emu_settings_type
 	DNSAddress,
 	IpSwapList,
 	PSNStatus,
-	PSNNPID,
-	RPCNHost,
-	RPCNPassword,
 
 	// System
 	Language,
@@ -270,10 +267,6 @@ static const QMap<emu_settings_type, cfg_location> settings_location =
 	{ emu_settings_type::DNSAddress,     { "Net", "DNS address"}},
 	{ emu_settings_type::IpSwapList,     { "Net", "IP swap list"}},
 	{ emu_settings_type::PSNStatus,      { "Net", "PSN status"}},
-	{ emu_settings_type::PSNNPID,        { "Net", "NPID"}},
-	{ emu_settings_type::RPCNHost,       { "Net", "RPCN host"}},
-	{ emu_settings_type::RPCNPassword,   { "Net", "RPCN Password"}},
-
 
 	// System
 	{ emu_settings_type::Language,              { "System", "Language"}},

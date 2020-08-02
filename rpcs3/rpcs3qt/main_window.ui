@@ -141,7 +141,7 @@
      <x>0</x>
      <y>0</y>
      <width>1058</width>
-     <height>22</height>
+     <height>30</height>
     </rect>
    </property>
    <property name="contextMenuPolicy">
@@ -223,6 +223,7 @@
     <addaction name="confIOAct"/>
     <addaction name="confSystemAct"/>
     <addaction name="separator"/>
+    <addaction name="confRPCNAct"/>
     <addaction name="confAutopauseManagerAct"/>
    </widget>
    <widget class="QMenu" name="menuManage">
@@ -1072,6 +1073,14 @@
   <action name="actionManage_Game_Patches">
    <property name="text">
     <string>Game Patches</string>
+   </property>
+  </action>
+  <action name="confRPCNAct">
+   <property name="text">
+    <string>RPCN</string>
+   </property>
+   <property name="toolTip">
+    <string>Configure RPCN</string>
    </property>
   </action>
  </widget>

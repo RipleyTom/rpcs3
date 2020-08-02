@@ -3,7 +3,7 @@
 #include "Emu/NP/rpcn_client.h"
 #include "np_structs_extra.h"
 
-extern logs::channel sceNp2;
+LOG_CHANNEL(sceNp2);
 
 // Helper functions for printing
 

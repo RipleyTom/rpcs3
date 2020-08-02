@@ -96,6 +96,7 @@
     <ClCompile Include="Emu\Io\KeyboardHandler.cpp" />
     <ClCompile Include="Emu\Io\pad_config.cpp" />
     <ClCompile Include="Emu\Io\pad_config_types.cpp" />
+    <ClCompile Include="Emu\NP\rpcn_config.cpp" />
     <ClCompile Include="Emu\RSX\Overlays\overlay_osk_panel.cpp" />
     <ClCompile Include="Emu\RSX\Overlays\overlay_utils.cpp" />
     <ClCompile Include="Emu\RSX\Overlays\Shaders\shader_loading_dialog.cpp" />
@@ -486,6 +487,7 @@
     <ClInclude Include="Emu\NP\np_handler.h" />
     <ClInclude Include="Emu\NP\np_structs_extra.h" />
     <ClInclude Include="Emu\NP\rpcn_client.h" />
+    <ClInclude Include="Emu\NP\rpcn_config.h" />
     <ClInclude Include="Emu\RSX\Common\ShaderInterpreter.h" />
     <ClInclude Include="Emu\RSX\Common\texture_cache_helpers.h" />
     <ClInclude Include="Emu\RSX\Overlays\overlay_fonts.h" />

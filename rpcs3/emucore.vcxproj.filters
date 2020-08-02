@@ -962,6 +962,9 @@
     <ClCompile Include="Emu\NP\rpcn_client.cpp">
       <Filter>Emu\NP</Filter>
     </ClCompile>
+    <ClCompile Include="Emu\NP\rpcn_config.cpp">
+      <Filter>Emu\NP</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Crypto\aes.h">
@@ -1844,6 +1847,9 @@
       <Filter>Emu\NP</Filter>
     </ClInclude>
     <ClInclude Include="Emu\NP\generated\np2_structs_generated.h">
+      <Filter>Emu\NP</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\NP\rpcn_config.h">
       <Filter>Emu\NP</Filter>
     </ClInclude>
   </ItemGroup>

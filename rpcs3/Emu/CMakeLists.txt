@@ -3,7 +3,6 @@
 	System.cpp
 	system_config.cpp
 	system_config_types.cpp
-	rpcn_config.cpp
 	VFS.cpp
 	GDB.cpp
 	title.cpp
@@ -365,8 +364,9 @@ target_sources(rpcs3_emu PRIVATE
 target_sources(rpcs3_emu PRIVATE
 	NP/fb_helpers.cpp
 	NP/np_handler.cpp
-	NP/rpcn_client.cpp
 	NP/np_structs_extra.cpp
+	NP/rpcn_client.cpp
+	NP/rpcn_config.cpp
 )
 
 # Memory

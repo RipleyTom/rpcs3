@@ -1,4 +1,4 @@
-#include <QMessageBox>
+﻿#include <QMessageBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -7,7 +7,7 @@
 #include <thread>
 
 #include "rpcn_settings_dialog.h"
-#include "Emu/rpcn_config.h"
+#include "Emu/NP/rpcn_config.h"
 #include "Emu/NP/rpcn_client.h"
 
 rpcn_settings_dialog::rpcn_settings_dialog(QWidget* parent)
@@ -35,7 +35,7 @@ rpcn_settings_dialog::rpcn_settings_dialog(QWidget* parent)
 	edit_pass->setEchoMode(QLineEdit::Password);
 
 	QPushButton* btn_create = new QPushButton(tr("Create Account"), this);
-	QPushButton* btn_ok   = new QPushButton(tr("Ok"), this);
+	QPushButton* btn_ok     = new QPushButton(tr("Ok"), this);
 
 	vbox_labels->addWidget(label_host);
 	vbox_labels->addWidget(label_npid);
@@ -76,7 +76,8 @@ bool rpcn_settings_dialog::save_config()
 	const auto npid     = edit_npid->text().toStdString();
 	const auto password = edit_pass->text().toStdString();
 
-	auto validate = [](const std::string& input) -> bool {
+	auto validate = [](const std::string& input) -> bool
+	{
 		if (input.length() < 3 || input.length() > 16)
 			return false;
 
@@ -130,14 +131,15 @@ bool rpcn_settings_dialog::create_account()
 	const auto password    = g_cfg_rpcn.password.to_string();
 
 	std::thread(
-	    [](const std::shared_ptr<rpcn_client> rpcn) {
-		    while (rpcn.use_count() != 1)
-			    rpcn->manage_connection();
+		[](const std::shared_ptr<rpcn_client> rpcn)
+		{
+			while (rpcn.use_count() != 1)
+				rpcn->manage_connection();
 
-		    rpcn->disconnect();
-	    },
-	    rpcn)
-	    .detach();
+			rpcn->disconnect();
+		},
+		rpcn)
+		.detach();
 
 	if (!rpcn->connect(host))
 	{

@@ -11,7 +11,7 @@
 #include "Emu/IdManager.h"
 #include "np_structs_extra.h"
 #include "Emu/System.h"
-#include "Emu/rpcn_config.h"
+#include "Emu/NP/rpcn_config.h"
 
 #ifdef _WIN32
 #include <winsock2.h>

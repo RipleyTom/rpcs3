@@ -1,5 +1,4 @@
-#include "system_config_types.h"
-#include "Utilities/Config.h"
+﻿#include "Utilities/Config.h"
 
 LOG_CHANNEL(rpcn_cfg, "RPCN Config");
 

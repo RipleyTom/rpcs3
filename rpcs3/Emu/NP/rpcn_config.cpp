@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "rpcn_config.h"
 #include "Emu/System.h"
 
@@ -39,7 +39,6 @@ std::string cfg_rpcn::generate_npid()
 	return gen_npid;
 }
 
-
 std::string cfg_rpcn::get_host() const
 {
 	return host.to_string();
@@ -56,6 +55,7 @@ std::string cfg_rpcn::get_npid()
 
 	return final_npid;
 }
+
 std::string cfg_rpcn::get_password() const
 {
 	return password.to_string();
@@ -65,10 +65,12 @@ void cfg_rpcn::set_host(const std::string& host)
 {
 	this->host.from_string(host);
 }
+
 void cfg_rpcn::set_npid(const std::string& npid)
 {
 	this->npid.from_string(npid);
 }
+
 void cfg_rpcn::set_password(const std::string& password)
 {
 	this->password.from_string(password);

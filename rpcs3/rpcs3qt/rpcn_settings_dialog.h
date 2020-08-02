@@ -1,4 +1,4 @@
-#include <QDialog>
+﻿#include <QDialog>
 #include <QLineEdit>
 
 class rpcn_settings_dialog : public QDialog
@@ -11,8 +11,6 @@ public:
 	bool save_config();
 	bool create_account();
 
-	protected:
+protected:
 	QLineEdit *edit_host, *edit_npid, *edit_pass;
-
-	std::string generate_npid();
 };

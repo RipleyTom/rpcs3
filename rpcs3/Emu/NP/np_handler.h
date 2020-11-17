@@ -54,6 +54,10 @@ public:
 		RoomDestroyed,
 		SignalP2PConnect,
 		_SignalP2PDisconnect,
+		FriendQuery,  // Other user sent a friend request
+		FriendNew,    // Add a friend to the friendlist(either accepted a friend request or friend accepted it)
+		FriendLost,   // Remove friend from the friendlist(user removed friend or friend removed friend)
+		FriendStatus, // Set status of friend to Offline or Online
 		RoomMessageReceived,
 	};
 
@@ -213,5 +217,5 @@ protected:
 	u8* allocate_req_result(u32 event_key, usz size);
 
 	// RPCN
-	rpcn_client rpcn;
+	std::shared_ptr<rpcn_client> rpcn;
 };

@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QRegExpValidator>
 #include <QInputDialog>
+#include <QGroupBox>
 #include <thread>
 
 #include "rpcn_settings_dialog.h"
@@ -13,11 +14,63 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/openssl/evp.h>
 
+rpcn_settings_dialog* rpcn_settings_dialog::get_dlg(QWidget* parent)
+{
+	if (inst == nullptr)
+		inst = new rpcn_settings_dialog(parent);
+	
+	return inst;
+}
+
 rpcn_settings_dialog::rpcn_settings_dialog(QWidget* parent)
+	: QDialog(parent)
+{
+	setWindowTitle(tr("RPCN"));
+	setObjectName("rpcn_settings_dialog");
+	setMinimumSize(QSize(400,100));
+
+	QVBoxLayout* vbox_global = new QVBoxLayout();
+
+	QGroupBox* group_btns = new QGroupBox("RPCN");
+	QHBoxLayout* hbox_group = new QHBoxLayout();
+
+	QPushButton* btn_account = new QPushButton("Account");
+	QPushButton* btn_friends = new QPushButton("Friends");
+
+	hbox_group->addWidget(btn_account);
+	hbox_group->addWidget(btn_friends);
+
+	group_btns->setLayout(hbox_group);
+	vbox_global->addWidget(group_btns);
+	setLayout(vbox_global);
+
+	connect(btn_account, &QPushButton::clicked, [this]()
+	{
+		auto* dlg = rpcn_account_dialog::get_dlg(this);
+		dlg->show();
+
+	});
+
+	connect(btn_friends, &QPushButton::clicked, [this]()
+	{
+		auto* dlg = rpcn_friends_dialog::get_dlg(this);
+		dlg->show();
+	});
+}
+
+rpcn_account_dialog* rpcn_account_dialog::get_dlg(QWidget* parent)
+{
+	if (inst == nullptr)
+		inst = new rpcn_account_dialog(parent);
+	
+	return inst;
+}
+
+rpcn_account_dialog::rpcn_account_dialog(QWidget* parent)
     : QDialog(parent)
 {
 	setWindowTitle(tr("RPCN Configuration"));
-	setObjectName("rpcn_settings_dialog");
+	setObjectName("rpcn_account_dialog");
 	setMinimumSize(QSize(400, 200));
 
 	QVBoxLayout* vbox_global           = new QVBoxLayout();
@@ -117,7 +170,7 @@ rpcn_settings_dialog::rpcn_settings_dialog(QWidget* parent)
 	m_edit_token->setText(QString::fromStdString(g_cfg_rpcn.get_token()));
 }
 
-bool rpcn_settings_dialog::save_config()
+bool rpcn_account_dialog::save_config()
 {
 	const auto host  = m_edit_host->text().toStdString();
 	const auto npid  = m_edit_npid->text().toStdString();
@@ -164,7 +217,7 @@ bool rpcn_settings_dialog::save_config()
 	return true;
 }
 
-bool rpcn_settings_dialog::create_account()
+bool rpcn_account_dialog::create_account()
 {
 	// Validate and save
 	if (!save_config())
@@ -191,7 +244,7 @@ bool rpcn_settings_dialog::create_account()
 		}
 	}
 
-	const auto rpcn = std::make_shared<rpcn_client>(true);
+	const auto rpcn = rpcn_client::get_instance();
 
 	const auto host        = g_cfg_rpcn.get_host();
 	const auto npid        = g_cfg_rpcn.get_npid();
@@ -199,32 +252,77 @@ bool rpcn_settings_dialog::create_account()
 	const auto avatar_url  = "https://rpcs3.net/cdn/netplay/DefaultAvatar.png";
 	const auto password    = g_cfg_rpcn.get_password();
 
-	std::thread(
-		[](const std::shared_ptr<rpcn_client> rpcn)
-		{
-			while (rpcn.use_count() != 1)
-				rpcn->manage_connection();
-
-			rpcn->disconnect();
-		},
-		rpcn)
-		.detach();
-
 	if (!rpcn->connect(host))
 	{
 		QMessageBox::critical(this, tr("Error Connecting"), tr("Failed to connect to RPCN server"), QMessageBox::Ok);
-		rpcn->abort();
 		return false;
 	}
 
 	if (!rpcn->create_user(npid, password, online_name, avatar_url, email.toStdString()))
 	{
 		QMessageBox::critical(this, tr("Error Creating Account"), tr("Failed to create the account"), QMessageBox::Ok);
-		rpcn->abort();
 		return false;
 	}
 
 	QMessageBox::information(this, tr("Account created!"), tr("Your account has been created successfully!\nCheck your email for your token!"), QMessageBox::Ok);
-	rpcn->abort();
 	return true;
+}
+
+rpcn_friends_dialog* rpcn_friends_dialog::get_dlg(QWidget* parent)
+{
+	if (inst == nullptr)
+		inst = new rpcn_friends_dialog(parent);
+	
+	return inst;
+}
+
+rpcn_friends_dialog::rpcn_friends_dialog(QWidget* parent)
+	: QDialog(parent)
+{
+	setWindowTitle(tr("RPCN: Friends"));
+	setObjectName("rpcn_friends_dialog");
+	setMinimumSize(QSize(400, 100));
+
+	QVBoxLayout* vbox_global = new QVBoxLayout();
+
+	QHBoxLayout* hbox_groupboxes = new QHBoxLayout();
+
+	{
+		QGroupBox* grp_list_friends = new QGroupBox(tr("Friends"));
+		QVBoxLayout* vbox_lst_friends = new QVBoxLayout();
+		lst_friends = new QListWidget(this);
+		vbox_lst_friends->addWidget(lst_friends);
+		QPushButton* btn_addfriend = new QPushButton(tr("Add Friend"));
+		vbox_lst_friends->addWidget(btn_addfriend);
+		grp_list_friends->setLayout(vbox_lst_friends);
+		hbox_groupboxes->addWidget(grp_list_friends);
+	}
+
+	{
+		QGroupBox* grp_list_requests = new QGroupBox(tr("Friend Requests"));
+		QVBoxLayout* vbox_lst_requests = new QVBoxLayout();
+		lst_requests = new QListWidget(this);
+		vbox_lst_requests->addWidget(lst_requests);
+		QHBoxLayout* hbox_request_btns = new QHBoxLayout();
+		QPushButton* btn_accept_request = new QPushButton(tr("Accept"));
+		hbox_request_btns->addWidget(btn_accept_request);
+		QPushButton* btn_block_request = new QPushButton(tr("Block"));
+		hbox_request_btns->addWidget(btn_block_request);
+		vbox_lst_requests->addLayout(hbox_request_btns);
+		grp_list_requests->setLayout(vbox_lst_requests);
+		hbox_groupboxes->addWidget(grp_list_requests);
+	}
+
+	{
+		QGroupBox* grp_list_blocks = new QGroupBox(tr("Blocked Users"));
+		QVBoxLayout* vbox_lst_blocks = new QVBoxLayout();
+		lst_blocks = new QListWidget(this);
+		vbox_lst_blocks->addWidget(lst_blocks);
+		grp_list_blocks->setLayout(vbox_lst_blocks);
+		hbox_groupboxes->addWidget(grp_list_blocks);
+	}
+
+	vbox_global->addLayout(hbox_groupboxes);
+
+	setLayout(vbox_global);
 }

@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <chrono>
+#include <condition_variable>
 #include "Utilities/mutex.h"
 
 #include "util/asm.hpp"
@@ -26,8 +27,7 @@ class vec_stream
 public:
 	vec_stream() = delete;
 	vec_stream(std::vector<u8>& _vec, usz initial_index = 0)
-	    : vec(_vec)
-	    , i(initial_index){}
+	    : vec(_vec), i(initial_index) {}
 	bool is_error() const
 	{
 		return error;
@@ -97,7 +97,7 @@ public:
 
 protected:
 	std::vector<u8>& vec;
-	usz i   = 0;
+	usz i      = 0;
 	bool error = false;
 };
 
@@ -107,6 +107,10 @@ enum CommandType : u16
 	Terminate,
 	Create,
 	SendToken,
+	AddFriend,
+	RemoveFriend,
+	AddBlock,
+	RemoveBlock,
 	GetServerList,
 	GetWorldList,
 	CreateRoom,
@@ -124,6 +128,7 @@ enum CommandType : u16
 
 class rpcn_client
 {
+private:
 	enum PacketType : u8
 	{
 		Request,
@@ -144,13 +149,53 @@ class rpcn_client
 		AlreadyJoined,
 		DbFail,
 		NotFound,
+		Blocked,
+		AlreadyFriend,
 		Unsupported,
 		__error_last
 	};
 
+	static inline std::weak_ptr<rpcn_client> instance;
+	static inline shared_mutex inst_mutex;
+
+	std::thread thread_rpcn, thread_rpcn_reader, thread_rpcn_writer;
+
+	std::condition_variable cond_reader, cond_writer, cond_rpcn;
+	std::mutex mutex_cond_reader, mutex_cond_writer, mutex_rpcn;
+
+	atomic_t<bool> terminate = false;
+
+	std::vector<std::vector<u8>> packets_to_send;
+	std::mutex mutex_packets_to_send;
+
+private:
+	rpcn_client();
+
+	void rpcn_reader_thread();
+	void rpcn_writer_thread();
+	void rpcn_thread();
+	
+	bool handle_input();
+	bool handle_output();
+
+private:
+	enum class recvn_result
+	{
+		recvn_success,
+		recvn_nodata,
+		recvn_timeout,
+		recvn_noconn,
+		recvn_fatal,
+	};
+
+	recvn_result recvn(u8* buf, usz n);
+	bool send_packet(const std::vector<u8>& packet);
+
 public:
-	rpcn_client(bool in_config = false);
 	~rpcn_client();
+	rpcn_client(rpcn_client& other) = delete;
+	void operator=(const rpcn_client&) = delete;
+	static std::shared_ptr<rpcn_client> get_instance();
 
 	bool connect(const std::string& host);
 	bool login(const std::string& npid, const std::string& password, const std::string& token);
@@ -159,13 +204,12 @@ public:
 	bool manage_connection();
 	std::vector<std::pair<u16, std::vector<u8>>> get_notifications();
 	std::unordered_map<u32, std::pair<u16, std::vector<u8>>> get_replies();
-	void abort();
 
 	// Synchronous requests
 	bool get_server_list(u32 req_id, const SceNpCommunicationId& communication_id, std::vector<u16>& server_list);
 	// Asynchronous requests
 	bool get_world_list(u32 req_id, const SceNpCommunicationId& communication_id, u16 server_id);
-	bool createjoin_room(u32 req_id,const SceNpCommunicationId& communication_id, const SceNpMatching2CreateJoinRoomRequest* req);
+	bool createjoin_room(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatching2CreateJoinRoomRequest* req);
 	bool join_room(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatching2JoinRoomRequest* req);
 	bool leave_room(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatching2LeaveRoomRequest* req);
 	bool search_room(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatching2SearchRoomRequest* req);
@@ -196,38 +240,25 @@ public:
 	}
 
 protected:
-	enum class recvn_result
-	{
-		recvn_success,
-		recvn_nodata,
-		recvn_timeout,
-		recvn_noconn,
-		recvn_fatal,
-	};
-
-	recvn_result recvn(u8* buf, usz n);
-
 	bool get_reply(u32 expected_id, std::vector<u8>& data);
 
 	std::vector<u8> forge_request(u16 command, u32 packet_id, const std::vector<u8>& data) const;
-	bool send_packet(const std::vector<u8>& packet);
 	bool forge_send(u16 command, u32 packet_id, const std::vector<u8>& data);
 	bool forge_send_reply(u16 command, u32 packet_id, const std::vector<u8>& data, std::vector<u8>& reply_data);
 
 	bool is_error(ErrorType err) const;
 	bool error_and_disconnect(const std::string& error_mgs);
-	bool is_abort() const;
 
-	std::string get_wolfssl_error(int error) const;
+	std::string get_wolfssl_error(WOLFSSL* wssl, int error) const;
 
 protected:
 	atomic_t<bool> connected    = false;
 	atomic_t<bool> authentified = false;
 
 	WOLFSSL_CTX* wssl_ctx = nullptr;
-	WOLFSSL* wssl = nullptr;
+	WOLFSSL* read_wssl    = nullptr;
+	WOLFSSL* write_wssl   = nullptr;
 
-	bool in_config    = false;
 	bool abort_config = false;
 
 	atomic_t<bool> server_info_received = false;
@@ -239,7 +270,6 @@ protected:
 	sockaddr_in addr_rpcn{};
 	sockaddr_in addr_rpcn_udp{};
 	int sockfd = 0;
-	shared_mutex mutex_socket;
 
 	shared_mutex mutex_notifs, mutex_replies, mutex_replies_sync;
 	std::vector<std::pair<u16, std::vector<u8>>> notifications;            // notif type / data

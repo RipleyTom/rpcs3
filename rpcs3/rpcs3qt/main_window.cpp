@@ -2031,8 +2031,8 @@ void main_window::CreateConnects()
 
 	connect(ui->confRPCNAct, &QAction::triggered, this, [this]()
 	{
-		rpcn_settings_dialog dlg(this);
-		dlg.exec();
+		auto* dlg = rpcn_settings_dialog::get_dlg(this);
+		dlg->show();
 	});
 
 	connect(ui->confAutopauseManagerAct, &QAction::triggered, this, [this]()

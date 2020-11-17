@@ -802,7 +802,7 @@ error_code sceNpBasicSendMessageGui(vm::cptr<SceNpBasicMessageDetails> msg, sys_
 		return SCE_NP_BASIC_ERROR_NOT_INITIALIZED;
 	}
 
-	if (!msg || msg->count > SCE_NP_BASIC_SEND_MESSAGE_MAX_RECIPIENTS || msg->npids.handle.data[0] == '\0' || !(msg->msgFeatures & SCE_NP_BASIC_MESSAGE_FEATURES_ALL_FEATURES))
+	if (!msg || msg->count > SCE_NP_BASIC_SEND_MESSAGE_MAX_RECIPIENTS || msg->npids.handle.data[0] == '\0' || (msg->msgFeatures & ~SCE_NP_BASIC_MESSAGE_FEATURES_ALL_FEATURES))
 	{
 		return SCE_NP_BASIC_ERROR_INVALID_ARGUMENT;
 	}
@@ -2931,10 +2931,9 @@ error_code sceNpManagerGetTicket(vm::ptr<void> buffer, vm::ptr<u32> bufferSize)
 	}
 
 	const auto& ticket = nph.get_ticket();
-
+	*bufferSize = static_cast<u32>(ticket.size());
 	if (!buffer)
 	{
-		*bufferSize = static_cast<u32>(ticket.size());
 		return CELL_OK;
 	}
 

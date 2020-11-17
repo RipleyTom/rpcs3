@@ -34,423 +34,163 @@
 
 LOG_CHANNEL(rpcn_log, "rpcn");
 
-#define RPCN_PROTOCOL_VERSION 10
+#define RPCN_PROTOCOL_VERSION 11
 #define RPCN_HEADER_SIZE 9
 #define COMMUNICATION_ID_SIZE 9
 
-rpcn_client::rpcn_client(bool in_config)
-    : in_config(in_config)
+// Those are defined here to avoid including sys_net.h
+s32 send_packet_from_p2p_port(const std::vector<u8>& data, const sockaddr_in& addr);
+std::vector<std::vector<u8>> get_rpcn_msgs();
+
+// Constructor, destructor & singleton manager
+
+rpcn_client::rpcn_client()
+    : thread_rpcn(std::thread(&rpcn_client::rpcn_thread, this)), thread_rpcn_reader(std::thread(&rpcn_client::rpcn_reader_thread, this)),
+      thread_rpcn_writer(std::thread(&rpcn_client::rpcn_writer_thread, this))
 {
 #ifdef _WIN32
 	WSADATA wsa_data;
 	WSAStartup(MAKEWORD(2, 2), &wsa_data);
 #endif
+	cond_rpcn.notify_all();
 }
 
 rpcn_client::~rpcn_client()
 {
-	disconnect();
+	std::lock_guard lock(inst_mutex);
+	terminate = true;
+	cond_rpcn.notify_all();
+	cond_reader.notify_all();
+	cond_writer.notify_all();
+
+	thread_rpcn.join();
+	thread_rpcn_reader.join();
+	thread_rpcn_writer.join();
 }
 
-std::string rpcn_client::get_wolfssl_error(int error) const
+std::shared_ptr<rpcn_client> rpcn_client::get_instance()
 {
-	char error_string[80]{};
-	const auto wssl_err = wolfSSL_get_error(wssl, error);
-	wolfSSL_ERR_error_string(wssl_err, &error_string[0]);
-	return std::string(error_string);
+	std::shared_ptr<rpcn_client> sptr;
+
+	std::lock_guard lock(inst_mutex);
+	sptr = instance.lock();
+	if (!sptr)
+	{
+		sptr     = std::make_shared<rpcn_client>();
+		instance = sptr;
+	}
+
+	return sptr;
 }
 
-void rpcn_client::disconnect()
+// RPCN thread
+void rpcn_client::rpcn_reader_thread()
 {
-	std::lock_guard lock(mutex_socket);
-
-	if (wssl)
+	while (true)
 	{
-		wolfSSL_free(wssl);
-		wssl = nullptr;
-	}
-
-	if (wssl_ctx)
-	{
-		wolfSSL_CTX_free(wssl_ctx);
-		wssl_ctx = nullptr;
-	}
-
-	wolfSSL_Cleanup();
-
-	if (sockfd)
-	{
-#ifdef _WIN32
-		::closesocket(sockfd);
-#else
-		::close(sockfd);
-#endif
-		sockfd = 0;
-	}
-
-	connected            = false;
-	authentified         = false;
-	server_info_received = false;
-}
-
-rpcn_client::recvn_result rpcn_client::recvn(u8* buf, usz n)
-{
-	u32 num_timeouts = 0;
-
-	usz n_recv = 0;
-	while (n_recv != n && !is_abort())
-	{
-		std::lock_guard lock(mutex_socket);
-
-		if (!connected)
-			return recvn_result::recvn_noconn;
-
-		int res = wolfSSL_read(wssl, reinterpret_cast<char*>(buf) + n_recv, n - n_recv);
-		if (res <= 0)
+		std::unique_lock lock(mutex_cond_reader);
+		cond_reader.wait(lock);
+		while (true)
 		{
-			if (wolfSSL_want_read(wssl))
+			if (terminate)
 			{
-				// If we received partially what we want try to wait longer
-				if (n_recv == 0)
-					return recvn_result::recvn_nodata;
-
-				num_timeouts++;
-				if (num_timeouts >= 1000)
-				{
-					rpcn_log.error("recvn timeout with %d bytes received", n_recv);
-					return recvn_result::recvn_timeout;
-				}
-			}
-			else
-			{
-				rpcn_log.error("recvn failed with error: %s", get_wolfssl_error(res));
-				return recvn_result::recvn_fatal;
+				return;
 			}
 
-			res = 0;
+			if (!handle_input())
+			{
+				break;
+			}
 		}
-		n_recv += res;
 	}
-
-	return recvn_result::recvn_success;
 }
 
-bool rpcn_client::send_packet(const std::vector<u8>& packet)
+void rpcn_client::rpcn_writer_thread()
 {
-	u32 num_timeouts = 0;
-	usz n_sent = 0;
-	while (n_sent != packet.size())
+	while (true)
 	{
-		std::lock_guard lock(mutex_socket);
-
-		if (!connected)
-			return false;
-
-		int res = wolfSSL_write(wssl, reinterpret_cast<const char*>(packet.data()), packet.size());
-		if (res <= 0)
+		std::unique_lock lock(mutex_cond_writer);
+		cond_writer.wait(lock);
+		while (true)
 		{
-			if (wolfSSL_want_write(wssl))
+			if (terminate)
 			{
-				num_timeouts++;
-				if (num_timeouts >= 1000)
-				{
-					rpcn_log.error("send_packet timeout with %d bytes sent", n_sent);
-					return error_and_disconnect("Failed to send all the bytes");
-				}
-			}
-			else
-			{
-				rpcn_log.error("send_packet failed with error: %s", get_wolfssl_error(res));
-				return error_and_disconnect("Failed to send all the bytes");
+				return;
 			}
 
-			res = 0;
+			if (!handle_output())
+			{
+				break;
+			}
 		}
-		n_sent += res;
 	}
-
-	return true;
 }
 
-bool rpcn_client::forge_send(u16 command, u32 packet_id, const std::vector<u8>& data)
+void rpcn_client::rpcn_thread()
 {
-	const auto sent_packet = forge_request(command, packet_id, data);
-	if (!send_packet(sent_packet))
-		return false;
-
-	return true;
-}
-
-bool rpcn_client::forge_send_reply(u16 command, u32 packet_id, const std::vector<u8>& data, std::vector<u8>& reply_data)
-{
-	if (!forge_send(command, packet_id, data))
-		return false;
-
-	if (!get_reply(packet_id, reply_data))
-		return false;
-
-	if (is_error(static_cast<ErrorType>(reply_data[0])))
+	while (true)
 	{
-		disconnect();
-		return false;
-	}
+		std::unique_lock lock(mutex_rpcn);
+		cond_rpcn.wait(lock);
 
-	return true;
-}
-
-bool rpcn_client::connect(const std::string& host)
-{
-	rpcn_log.warning("Attempting to connect to RPCN!");
-
-	// Cleans previous data if any
-	disconnect();
-
-	{
-		std::lock_guard lock(mutex_socket);
-
-		if (wolfSSL_Init() != WOLFSSL_SUCCESS)
+		while (true)
 		{
-			rpcn_log.fatal("Failed to initialize wolfssl");
-			return false;
-		}
+			if (terminate)
+			{
+				return;
+			}
 
-		if ((wssl_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method())) == nullptr)
-		{
-			rpcn_log.fatal("Failed to create wolfssl context");
-			return false;
-		}
+			if (!connected)
+			{
+				// By default is the object is alive we should be connected
 
-		wolfSSL_CTX_set_verify(wssl_ctx, SSL_VERIFY_NONE, nullptr);
-
-		if ((wssl = wolfSSL_new(wssl_ctx)) == nullptr)
-		{
-			rpcn_log.fatal("Failed to create wolfssl object");
-			return false;
-		}
-
-		memset(&addr_rpcn, 0, sizeof(addr_rpcn));
-
-		addr_rpcn.sin_port   = std::bit_cast<u16, be_t<u16>>(31313); // htons
-		addr_rpcn.sin_family = AF_INET;
-		auto splithost       = fmt::split(host, {":"});
-
-		if (splithost.size() != 1 && splithost.size() != 2)
-		{
-			rpcn_log.fatal("RPCN host is invalid!");
-			return false;
-		}
-
-		if (splithost.size() == 2)
-			addr_rpcn.sin_port = std::bit_cast<u16, be_t<u16>>(std::stoul(splithost[1])); // htons
-
-		hostent* host_addr = gethostbyname(splithost[0].c_str());
-		if (!host_addr)
-		{
-			rpcn_log.fatal("Failed to resolve %s", splithost[0]);
-			return false;
-		}
-
-		addr_rpcn.sin_addr.s_addr = *reinterpret_cast<u32*>(host_addr->h_addr_list[0]);
-
-		memcpy(&addr_rpcn_udp, &addr_rpcn, sizeof(addr_rpcn_udp));
-		addr_rpcn_udp.sin_port = std::bit_cast<u16, be_t<u16>>(3657); // htons
-
-		sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-#ifdef _WIN32
-		u32 timeout = 5;
-#else
-		struct timeval timeout;
-		timeout.tv_sec  = 0;
-		timeout.tv_usec = 5000;
-#endif
-
-		if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&timeout), sizeof(timeout)) < 0)
-		{
-			rpcn_log.fatal("Failed to setsockopt!");
-			return false;
-		}
-
-		if (::connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr_rpcn), sizeof(addr_rpcn)) != 0)
-		{
-			rpcn_log.fatal("Failed to connect to RPCN server!");
-			return false;
-		}
-
-		if (wolfSSL_set_fd(wssl, sockfd) != WOLFSSL_SUCCESS)
-		{
-			rpcn_log.fatal("Failed to associate wolfssl to the socket");
-			return false;
-		}
-
-		int ret_connect;
-		while((ret_connect = wolfSSL_connect(wssl)) != SSL_SUCCESS)
-		{
-			if(wolfSSL_want_read(wssl))
 				continue;
-
-			rpcn_log.fatal("Handshake failed with RPCN Server: %s", get_wolfssl_error(ret_connect));
-			return false;
-		}
-	}
-
-	connected = true;
-
-	while (!server_info_received && connected && !is_abort())
-	{
-		if (in_config)
-			std::this_thread::sleep_for(5ms);
-		else
-			thread_ctrl::wait_for(5000);
-	}
-
-	if (received_version != RPCN_PROTOCOL_VERSION)
-	{
-		rpcn_log.fatal("Server returned protocol version: %d, expected: %d", received_version, RPCN_PROTOCOL_VERSION);
-		disconnect();
-		return false;
-	}
-
-	last_ping_time = steady_clock::now() - 5s;
-	last_pong_time = last_ping_time;
-
-	return true;
-}
-
-bool rpcn_client::login(const std::string& npid, const std::string& password, const std::string& token)
-{
-	std::vector<u8> data{};
-	std::copy(npid.begin(), npid.end(), std::back_inserter(data));
-	data.push_back(0);
-	std::copy(password.begin(), password.end(), std::back_inserter(data));
-	data.push_back(0);
-	std::copy(token.begin(), token.end(), std::back_inserter(data));
-	data.push_back(0);
-	const auto sent_packet = forge_request(CommandType::Login, 1, data);
-	if (!send_packet(sent_packet))
-		return false;
-
-	std::vector<u8> packet_data{};
-	if (!get_reply(1, packet_data))
-		return false;
-
-	vec_stream reply(packet_data);
-	u8 error    = reply.get<u8>();
-	online_name = reply.get_string(false);
-	avatar_url  = reply.get_string(false);
-	user_id     = reply.get<s64>();
-
-	if (is_error(static_cast<ErrorType>(error)))
-	{
-		disconnect();
-		return false;
-	}
-
-	if (reply.is_error())
-		return error_and_disconnect("Malformed reply to Login command");
-
-	rpcn_log.success("You are now logged in RPCN(%s | %s)!", npid, online_name);
-	authentified = true;
-
-	// Make sure signaling works
-	if (!in_config)
-	{
-		auto start = steady_clock::now();
-
-		while (!get_addr_sig() && steady_clock::now() - start < 5s)
-		{
-			std::this_thread::sleep_for(5ms);
-		}
-
-		if (!get_addr_sig())
-			return error_and_disconnect("Failed to get Signaling going with the server!");
-	}
-
-	return true;
-}
-
-bool rpcn_client::create_user(const std::string& npid, const std::string& password, const std::string& online_name, const std::string& avatar_url, const std::string& email)
-{
-	std::vector<u8> data{};
-	std::copy(npid.begin(), npid.end(), std::back_inserter(data));
-	data.push_back(0);
-	std::copy(password.begin(), password.end(), std::back_inserter(data));
-	data.push_back(0);
-	std::copy(online_name.begin(), online_name.end(), std::back_inserter(data));
-	data.push_back(0);
-	std::copy(avatar_url.begin(), avatar_url.end(), std::back_inserter(data));
-	data.push_back(0);
-	std::copy(email.begin(), email.end(), std::back_inserter(data));
-	data.push_back(0);
-	const auto sent_packet = forge_request(CommandType::Create, 1, data);
-	if (!send_packet(sent_packet))
-		return false;
-
-	std::vector<u8> packet_data{};
-	if (!get_reply(1, packet_data))
-		return false;
-
-	vec_stream reply(packet_data);
-	u8 error = reply.get<u8>();
-
-	if (is_error(static_cast<ErrorType>(error)))
-	{
-		disconnect();
-		return false;
-	}
-
-	rpcn_log.success("You have successfully created a RPCN account(%s | %s)!", npid, online_name);
-
-	return true;
-}
-
-s32 send_packet_from_p2p_port(const std::vector<u8>& data, const sockaddr_in& addr);
-std::vector<std::vector<u8>> get_rpcn_msgs();
-
-bool rpcn_client::manage_connection()
-{
-	if (!connected)
-		return false;
-
-	if (authentified && !in_config)
-	{
-		// Ping the UDP Signaling Server
-		auto now = steady_clock::now();
-
-		auto rpcn_msgs = get_rpcn_msgs();
-
-		for (const auto& msg : rpcn_msgs)
-		{
-			if (msg.size() == 6)
-			{
-				addr_sig = *utils::bless<le_t<u32>>(&msg[0]);
-				port_sig = *utils::bless<be_t<u16>>(&msg[4]);
-
-				[[maybe_unused]] in_addr orig{};
-				orig.s_addr = addr_sig;
-
-				last_pong_time = now;
 			}
-			else
+
+			if (authentified && !Emu.IsStopped())
 			{
-				rpcn_log.error("Received faulty RPCN UDP message!");
+				// Ping the UDP Signaling Server
+				auto now = steady_clock::now();
+
+				auto rpcn_msgs = get_rpcn_msgs();
+
+				for (const auto& msg : rpcn_msgs)
+				{
+					if (msg.size() == 6)
+					{
+						addr_sig = *utils::bless<le_t<u32>>(&msg[0]);
+						port_sig = *utils::bless<be_t<u16>>(&msg[4]);
+
+						[[maybe_unused]] in_addr orig{};
+						orig.s_addr = addr_sig;
+
+						last_pong_time = now;
+					}
+					else
+					{
+						rpcn_log.error("Received faulty RPCN UDP message!");
+					}
+				}
+
+				// Send a packet every 5 seconds and then every 500 ms until reply is received
+				if (now - last_pong_time > 5s && now - last_ping_time > 500ms)
+				{
+					std::vector<u8> ping(9);
+					ping[0]                               = 1;
+					*utils::bless<le_t<s64, 1>>(&ping[1]) = user_id;
+					if (send_packet_from_p2p_port(ping, addr_rpcn_udp) == -1)
+					{
+						rpcn_log.error("Failed to send ping to rpcn!");
+					}
+					last_ping_time = now;
+				}
 			}
 		}
-
-		// Send a packet every 5 seconds and then every 500 ms until reply is received
-		if (now - last_pong_time > 5s && now - last_ping_time > 500ms)
-		{
-			std::vector<u8> ping(9);
-			ping[0]                                 = 1;
-			*utils::bless<le_t<s64, 1>>(&ping[1])   = user_id;
-			if (send_packet_from_p2p_port(ping, addr_rpcn_udp) == -1)
-			{
-				rpcn_log.error("Failed to send ping to rpcn!");
-			}
-			last_ping_time = now;
-		}
 	}
+}
 
+bool rpcn_client::handle_input()
+{
 	u8 header[RPCN_HEADER_SIZE];
 	auto res_recvn = recvn(header, RPCN_HEADER_SIZE);
 
@@ -520,6 +260,388 @@ bool rpcn_client::manage_connection()
 
 	default: return error_and_disconnect("Unknown packet received!");
 	}
+}
+
+bool rpcn_client::handle_output()
+{
+	std::lock_guard lock(mutex_packets_to_send);
+	if (packets_to_send.empty())
+	{
+		return true;
+	}
+
+	for (const auto& packet : packets_to_send)
+	{
+		if (!send_packet(packet))
+		{
+			return false;
+		}
+	}
+}
+
+// WolfSSL operations
+
+std::string rpcn_client::get_wolfssl_error(WOLFSSL* wssl, int error) const
+{
+	char error_string[WOLFSSL_MAX_ERROR_SZ]{};
+	const auto wssl_err = wolfSSL_get_error(wssl, error);
+	wolfSSL_ERR_error_string(wssl_err, &error_string[0]);
+	return std::string(error_string);
+}
+
+rpcn_client::recvn_result rpcn_client::recvn(u8* buf, usz n)
+{
+	u32 num_timeouts = 0;
+
+	usz n_recv = 0;
+	while (n_recv != n && !is_abort())
+	{
+		if (!connected)
+			return recvn_result::recvn_noconn;
+
+		int res = wolfSSL_read(read_wssl, reinterpret_cast<char*>(buf) + n_recv, n - n_recv);
+		if (res <= 0)
+		{
+			if (wolfSSL_want_read(read_wssl))
+			{
+				// If we received partially what we want try to wait longer
+				if (n_recv == 0)
+					return recvn_result::recvn_nodata;
+
+				num_timeouts++;
+				if (num_timeouts >= 1000)
+				{
+					rpcn_log.error("recvn timeout with %d bytes received", n_recv);
+					return recvn_result::recvn_timeout;
+				}
+			}
+			else
+			{
+				rpcn_log.error("recvn failed with error: %s", get_wolfssl_error(read_wssl, res));
+				return recvn_result::recvn_fatal;
+			}
+
+			res = 0;
+		}
+		n_recv += res;
+	}
+
+	return recvn_result::recvn_success;
+}
+
+bool rpcn_client::send_packet(const std::vector<u8>& packet)
+{
+	u32 num_timeouts = 0;
+	usz n_sent       = 0;
+	while (n_sent != packet.size())
+	{
+		if (!connected)
+			return false;
+
+		int res = wolfSSL_write(write_wssl, reinterpret_cast<const char*>(packet.data()), packet.size());
+		if (res <= 0)
+		{
+			if (wolfSSL_want_write(write_wssl))
+			{
+				num_timeouts++;
+				if (num_timeouts >= 1000)
+				{
+					rpcn_log.error("send_packet timeout with %d bytes sent", n_sent);
+					return error_and_disconnect("Failed to send all the bytes");
+				}
+			}
+			else
+			{
+				rpcn_log.error("send_packet failed with error: %s", get_wolfssl_error(write_wssl, res));
+				return error_and_disconnect("Failed to send all the bytes");
+			}
+
+			res = 0;
+		}
+		n_sent += res;
+	}
+
+	return true;
+}
+
+// Helper functions
+
+bool rpcn_client::forge_send(u16 command, u32 packet_id, const std::vector<u8>& data)
+{
+	const auto sent_packet = forge_request(command, packet_id, data);
+	if (!send_packet(sent_packet))
+		return false;
+
+	return true;
+}
+
+bool rpcn_client::forge_send_reply(u16 command, u32 packet_id, const std::vector<u8>& data, std::vector<u8>& reply_data)
+{
+	if (!forge_send(command, packet_id, data))
+		return false;
+
+	if (!get_reply(packet_id, reply_data))
+		return false;
+
+	if (is_error(static_cast<ErrorType>(reply_data[0])))
+	{
+		disconnect();
+		return false;
+	}
+
+	return true;
+}
+
+// Connect & disconnect functions
+
+void rpcn_client::disconnect()
+{
+	if (read_wssl)
+	{
+		wolfSSL_free(read_wssl);
+		read_wssl = nullptr;
+	}
+
+	if (write_wssl)
+	{
+		wolfSSL_free(write_wssl);
+		write_wssl = nullptr;
+	}
+
+	if (wssl_ctx)
+	{
+		wolfSSL_CTX_free(wssl_ctx);
+		wssl_ctx = nullptr;
+	}
+
+	wolfSSL_Cleanup();
+
+	if (sockfd)
+	{
+#ifdef _WIN32
+		::closesocket(sockfd);
+#else
+		::close(sockfd);
+#endif
+		sockfd = 0;
+	}
+
+	connected            = false;
+	authentified         = false;
+	server_info_received = false;
+}
+
+bool rpcn_client::connect(const std::string& host)
+{
+	rpcn_log.warning("Attempting to connect to RPCN!");
+
+	// Cleans previous data if any
+	disconnect();
+
+	{
+		// Ensures both read & write threads are in waiting state
+		std::lock_guard lock_read(mutex_cond_reader), lock_write(mutex_cond_writer);
+
+		if (wolfSSL_Init() != WOLFSSL_SUCCESS)
+		{
+			rpcn_log.fatal("Failed to initialize wolfssl");
+			return false;
+		}
+
+		if ((wssl_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method())) == nullptr)
+		{
+			rpcn_log.fatal("Failed to create wolfssl context");
+			return false;
+		}
+
+		wolfSSL_CTX_set_verify(wssl_ctx, SSL_VERIFY_NONE, nullptr);
+
+		if ((read_wssl = wolfSSL_new(wssl_ctx)) == nullptr)
+		{
+			rpcn_log.fatal("Failed to create wolfssl object");
+			return false;
+		}
+
+		memset(&addr_rpcn, 0, sizeof(addr_rpcn));
+
+		addr_rpcn.sin_port   = std::bit_cast<u16, be_t<u16>>(31313); // htons
+		addr_rpcn.sin_family = AF_INET;
+		auto splithost       = fmt::split(host, {":"});
+
+		if (splithost.size() != 1 && splithost.size() != 2)
+		{
+			rpcn_log.fatal("RPCN host is invalid!");
+			return false;
+		}
+
+		if (splithost.size() == 2)
+			addr_rpcn.sin_port = std::bit_cast<u16, be_t<u16>>(std::stoul(splithost[1])); // htons
+
+		hostent* host_addr = gethostbyname(splithost[0].c_str());
+		if (!host_addr)
+		{
+			rpcn_log.fatal("Failed to resolve %s", splithost[0]);
+			return false;
+		}
+
+		addr_rpcn.sin_addr.s_addr = *reinterpret_cast<u32*>(host_addr->h_addr_list[0]);
+
+		memcpy(&addr_rpcn_udp, &addr_rpcn, sizeof(addr_rpcn_udp));
+		addr_rpcn_udp.sin_port = std::bit_cast<u16, be_t<u16>>(3657); // htons
+
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+#ifdef _WIN32
+		u32 timeout = 5;
+#else
+		struct timeval timeout;
+		timeout.tv_sec  = 0;
+		timeout.tv_usec = 50000; // 50ms
+#endif
+
+		if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&timeout), sizeof(timeout)) < 0)
+		{
+			rpcn_log.fatal("Failed to setsockopt!");
+			return false;
+		}
+
+		if (::connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr_rpcn), sizeof(addr_rpcn)) != 0)
+		{
+			rpcn_log.fatal("Failed to connect to RPCN server!");
+			return false;
+		}
+
+		if (wolfSSL_set_fd(read_wssl, sockfd) != WOLFSSL_SUCCESS)
+		{
+			rpcn_log.fatal("Failed to associate wolfssl to the socket");
+			return false;
+		}
+
+		int ret_connect;
+		while ((ret_connect = wolfSSL_connect(read_wssl)) != SSL_SUCCESS)
+		{
+			if (wolfSSL_want_read(read_wssl))
+				continue;
+
+			rpcn_log.fatal("Handshake failed with RPCN Server: %s", get_wolfssl_error(read_wssl, ret_connect));
+			return false;
+		}
+
+		if ((write_wssl = wolfSSL_write_dup(read_wssl)) == NULL)
+		{
+			rpcn_log.fatal("Failed to create write dup for SSL");
+			return false;
+		}
+	}
+
+	connected = true;
+	// Wake up both read & write threads
+	cond_reader.notify_all();
+	cond_writer.notify_all();
+
+	while (!server_info_received && connected && !terminate)
+	{
+		std::this_thread::sleep_for(5ms);
+	}
+
+	if (!connected || terminate)
+	{
+		return false;
+	}
+
+	if (received_version != RPCN_PROTOCOL_VERSION)
+	{
+		rpcn_log.fatal("Server returned protocol version: %d, expected: %d", received_version, RPCN_PROTOCOL_VERSION);
+		disconnect();
+		return false;
+	}
+
+	last_ping_time = steady_clock::now() - 5s;
+	last_pong_time = last_ping_time;
+
+	return true;
+}
+
+bool rpcn_client::login(const std::string& npid, const std::string& password, const std::string& token)
+{
+	std::vector<u8> data{};
+	std::copy(npid.begin(), npid.end(), std::back_inserter(data));
+	data.push_back(0);
+	std::copy(password.begin(), password.end(), std::back_inserter(data));
+	data.push_back(0);
+	std::copy(token.begin(), token.end(), std::back_inserter(data));
+	data.push_back(0);
+	const auto sent_packet = forge_request(CommandType::Login, 1, data);
+	if (!send_packet(sent_packet))
+		return false;
+
+	std::vector<u8> packet_data{};
+	if (!get_reply(1, packet_data))
+		return false;
+
+	vec_stream reply(packet_data);
+	u8 error    = reply.get<u8>();
+	online_name = reply.get_string(false);
+	avatar_url  = reply.get_string(false);
+	user_id     = reply.get<s64>();
+
+	if (is_error(static_cast<ErrorType>(error)))
+	{
+		disconnect();
+		return false;
+	}
+
+	if (reply.is_error())
+		return error_and_disconnect("Malformed reply to Login command");
+
+	rpcn_log.success("You are now logged in RPCN(%s | %s)!", npid, online_name);
+	authentified = true;
+
+	// Make sure signaling works
+	auto start = steady_clock::now();
+
+	while (!get_addr_sig() && steady_clock::now() - start < 5s)
+	{
+		std::this_thread::sleep_for(5ms);
+	}
+
+	if (!get_addr_sig())
+		return error_and_disconnect("Failed to get Signaling going with the server!");
+
+	return true;
+}
+
+bool rpcn_client::create_user(const std::string& npid, const std::string& password, const std::string& online_name, const std::string& avatar_url, const std::string& email)
+{
+	std::vector<u8> data{};
+	std::copy(npid.begin(), npid.end(), std::back_inserter(data));
+	data.push_back(0);
+	std::copy(password.begin(), password.end(), std::back_inserter(data));
+	data.push_back(0);
+	std::copy(online_name.begin(), online_name.end(), std::back_inserter(data));
+	data.push_back(0);
+	std::copy(avatar_url.begin(), avatar_url.end(), std::back_inserter(data));
+	data.push_back(0);
+	std::copy(email.begin(), email.end(), std::back_inserter(data));
+	data.push_back(0);
+	const auto sent_packet = forge_request(CommandType::Create, 1, data);
+	if (!send_packet(sent_packet))
+		return false;
+
+	std::vector<u8> packet_data{};
+	if (!get_reply(1, packet_data))
+		return false;
+
+	vec_stream reply(packet_data);
+	u8 error = reply.get<u8>();
+
+	if (is_error(static_cast<ErrorType>(error)))
+	{
+		disconnect();
+		return false;
+	}
+
+	rpcn_log.success("You have successfully created a RPCN account(%s | %s)!", npid, online_name);
 
 	return true;
 }
@@ -733,7 +855,7 @@ bool rpcn_client::createjoin_room(u32 req_id, const SceNpCommunicationId& commun
 	    final_memberbinattrinternal_vec, req->teamId, final_optparam);
 
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + sizeof(u32) + bufsize);
 
@@ -777,7 +899,7 @@ bool rpcn_client::join_room(u32 req_id, const SceNpCommunicationId& communicatio
 	auto req_finished = CreateJoinRoomRequest(builder, req->roomId, final_roompassword, final_grouplabel, final_memberbinattrinternal_vec, final_optdata, req->teamId);
 
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + sizeof(u32) + bufsize);
 
@@ -799,7 +921,7 @@ bool rpcn_client::leave_room(u32 req_id, const SceNpCommunicationId& communicati
 	flatbuffers::Offset<PresenceOptionData> final_optdata = CreatePresenceOptionData(builder, builder.CreateVector(req->optData.data, 16), req->optData.length);
 	auto req_finished                                     = CreateLeaveRoomRequest(builder, req->roomId, final_optdata);
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + sizeof(u32) + bufsize);
 
@@ -865,7 +987,7 @@ bool rpcn_client::search_room(u32 req_id, const SceNpCommunicationId& communicat
 
 	auto req_finished = s_req.Finish();
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + bufsize + sizeof(u32));
 
@@ -920,7 +1042,7 @@ bool rpcn_client::set_roomdata_external(u32 req_id, const SceNpCommunicationId& 
 	auto req_finished = CreateSetRoomDataExternalRequest(builder, req->roomId, final_searchintattrexternal_vec, final_searchbinattrexternal_vec, final_binattrexternal_vec);
 
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + bufsize + sizeof(u32));
 
@@ -947,7 +1069,7 @@ bool rpcn_client::get_roomdata_internal(u32 req_id, const SceNpCommunicationId& 
 	auto req_finished = CreateGetRoomDataInternalRequest(builder, req->roomId, final_attr_ids_vec);
 
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + bufsize + sizeof(u32));
 
@@ -1002,7 +1124,7 @@ bool rpcn_client::set_roomdata_internal(u32 req_id, const SceNpCommunicationId& 
 	    CreateSetRoomDataInternalRequest(builder, req->roomId, req->flagFilter, req->flagAttr, final_binattrinternal_vec, final_grouppasswordconfig_vec, final_passwordSlotMask, final_ownerprivilege_vec);
 
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + bufsize + sizeof(u32));
 
@@ -1037,31 +1159,31 @@ bool rpcn_client::send_room_message(u32 req_id, const SceNpCommunicationId& comm
 	flatbuffers::FlatBufferBuilder builder(1024);
 
 	std::vector<u16> dst;
-	switch(req->castType)
+	switch (req->castType)
 	{
-		case SCE_NP_MATCHING2_CASTTYPE_BROADCAST:
-			break;
-		case SCE_NP_MATCHING2_CASTTYPE_UNICAST:
-			dst.push_back(req->dst.unicastTarget);
-			break;
-		case SCE_NP_MATCHING2_CASTTYPE_MULTICAST:
-			for (u32 i = 0; i < req->dst.multicastTarget.memberIdNum; i++)
-			{
-				dst.push_back(req->dst.multicastTarget.memberId[i]);
-			}
-			break;
-		case SCE_NP_MATCHING2_CASTTYPE_MULTICAST_TEAM:
-			dst.push_back(req->dst.multicastTargetTeamId);
-			break;
-		default:
-			ensure(false);
-			break;
+	case SCE_NP_MATCHING2_CASTTYPE_BROADCAST:
+		break;
+	case SCE_NP_MATCHING2_CASTTYPE_UNICAST:
+		dst.push_back(req->dst.unicastTarget);
+		break;
+	case SCE_NP_MATCHING2_CASTTYPE_MULTICAST:
+		for (u32 i = 0; i < req->dst.multicastTarget.memberIdNum; i++)
+		{
+			dst.push_back(req->dst.multicastTarget.memberId[i]);
+		}
+		break;
+	case SCE_NP_MATCHING2_CASTTYPE_MULTICAST_TEAM:
+		dst.push_back(req->dst.multicastTargetTeamId);
+		break;
+	default:
+		ensure(false);
+		break;
 	}
 
-	auto req_finished = CreateSendRoomMessageRequest(builder, req->roomId, req->castType, builder.CreateVector(dst.data(), dst.size()), builder.CreateVector(reinterpret_cast<const u8 *>(req->msg.get_ptr()), req->msgLen), req->option);
+	auto req_finished = CreateSendRoomMessageRequest(builder, req->roomId, req->castType, builder.CreateVector(dst.data(), dst.size()), builder.CreateVector(reinterpret_cast<const u8*>(req->msg.get_ptr()), req->msgLen), req->option);
 
 	builder.Finish(req_finished);
-	u8* buf        = builder.GetBufferPointer();
+	u8* buf     = builder.GetBufferPointer();
 	usz bufsize = builder.GetSize();
 	data.resize(COMMUNICATION_ID_SIZE + bufsize + sizeof(u32));
 
@@ -1145,26 +1267,4 @@ bool rpcn_client::error_and_disconnect(const std::string& error_msg)
 	rpcn_log.error("%s", error_msg);
 	disconnect();
 	return false;
-}
-
-bool rpcn_client::is_abort() const
-{
-	if (in_config)
-	{
-		if (abort_config)
-			return true;
-	}
-	else
-	{
-		if (Emu.IsStopped() || thread_ctrl::state() == thread_state::aborting)
-			return true;
-	}
-
-	return false;
-}
-
-void rpcn_client::abort()
-{
-	ensure(in_config);
-	abort_config = true;
 }

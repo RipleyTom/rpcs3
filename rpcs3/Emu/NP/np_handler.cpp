@@ -44,6 +44,8 @@ np_handler::np_handler()
 {
 	g_cfg_rpcn.load();
 
+	rpcn = rpcn_client::get_instance();
+
 	is_connected  = (g_cfg.net.net_active == np_internet_status::enabled);
 	is_psn_active = (g_cfg.net.psn_status >= np_psn_status::fake);
 
@@ -341,23 +343,23 @@ void np_handler::init_NP(u32 poolsize, vm::ptr<void> poolptr)
 			break;
 
 		// Connect RPCN client
-		if (!rpcn.connect(g_cfg_rpcn.get_host()))
+		if (!rpcn->connect(g_cfg_rpcn.get_host()))
 		{
 			rpcn_log.error("Connection to RPCN Failed!");
 			is_psn_active = false;
 			return;
 		}
 
-		if (!rpcn.login(g_cfg_rpcn.get_npid(), g_cfg_rpcn.get_password(), g_cfg_rpcn.get_token()))
+		if (!rpcn->login(g_cfg_rpcn.get_npid(), g_cfg_rpcn.get_password(), g_cfg_rpcn.get_token()))
 		{
 			rpcn_log.error("RPCN login attempt failed!");
 			is_psn_active = false;
 			return;
 		}
 
-		np_handler::string_to_online_name(rpcn.get_online_name(), &online_name);
-		np_handler::string_to_avatar_url(rpcn.get_avatar_url(), &avatar_url);
-		public_ip_addr = rpcn.get_addr_sig();
+		np_handler::string_to_online_name(rpcn->get_online_name(), &online_name);
+		np_handler::string_to_avatar_url(rpcn->get_avatar_url(), &avatar_url);
+		public_ip_addr = rpcn->get_addr_sig();
 
 		break;
 	}
@@ -377,7 +379,7 @@ void np_handler::terminate_NP()
 	if (g_cfg.net.psn_status == np_psn_status::rpcn)
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
-		rpcn.disconnect();
+		rpcn->disconnect();
 	}
 }
 
@@ -436,7 +438,7 @@ std::vector<SceNpMatching2ServerId> np_handler::get_match2_server_list(SceNpMatc
 		return server_list;
 	}
 
-	if (!rpcn.get_server_list(get_req_id(0), get_match2_context(ctx_id)->communicationId, server_list))
+	if (!rpcn->get_server_list(get_req_id(0), get_match2_context(ctx_id)->communicationId, server_list))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -488,7 +490,7 @@ u32 np_handler::get_world_list(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMat
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.get_world_list(req_id, get_match2_context(ctx_id)->communicationId, server_id))
+	if (!rpcn->get_world_list(req_id, get_match2_context(ctx_id)->communicationId, server_id))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -501,7 +503,7 @@ u32 np_handler::create_join_room(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpM
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.createjoin_room(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->createjoin_room(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -514,7 +516,7 @@ u32 np_handler::join_room(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMatching
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.join_room(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->join_room(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -527,7 +529,7 @@ u32 np_handler::leave_room(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMatchin
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.leave_room(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->leave_room(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -540,7 +542,7 @@ u32 np_handler::search_room(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMatchi
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.search_room(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->search_room(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -555,7 +557,7 @@ u32 np_handler::set_roomdata_external(SceNpMatching2ContextId ctx_id, vm::cptr<S
 
 	extra_nps::print_set_roomdata_ext_req(req);
 
-	if (!rpcn.set_roomdata_external(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->set_roomdata_external(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -568,7 +570,7 @@ u32 np_handler::get_roomdata_internal(SceNpMatching2ContextId ctx_id, vm::cptr<S
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.get_roomdata_internal(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->get_roomdata_internal(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -583,7 +585,7 @@ u32 np_handler::set_roomdata_internal(SceNpMatching2ContextId ctx_id, vm::cptr<S
 
 	extra_nps::print_set_roomdata_int_req(req);
 
-	if (!rpcn.set_roomdata_internal(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->set_roomdata_internal(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -596,7 +598,7 @@ u32 np_handler::get_ping_info(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMatc
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.ping_room_owner(req_id, get_match2_context(ctx_id)->communicationId, req->roomId))
+	if (!rpcn->ping_room_owner(req_id, get_match2_context(ctx_id)->communicationId, req->roomId))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -609,7 +611,7 @@ u32 np_handler::send_room_message(SceNpMatching2ContextId ctx_id, vm::cptr<SceNp
 {
 	u32 req_id = generate_callback_info(ctx_id, optParam);
 
-	if (!rpcn.send_room_message(req_id, get_match2_context(ctx_id)->communicationId, req))
+	if (!rpcn->send_room_message(req_id, get_match2_context(ctx_id)->communicationId, req))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -623,7 +625,7 @@ void np_handler::req_sign_infos(const std::string& npid, u32 conn_id)
 	u32 req_id = get_req_id(0x3333);
 	pending_sign_infos_requests[req_id] = conn_id;
 
-	if (!rpcn.req_sign_infos(req_id, npid))
+	if (!rpcn->req_sign_infos(req_id, npid))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -638,7 +640,7 @@ void np_handler::req_ticket(u32 /*version*/, const SceNpId* /*npid*/, const char
 
 	std::string service_id_str(service_id);
 
-	if (!rpcn.req_ticket(req_id, service_id_str))
+	if (!rpcn->req_ticket(req_id, service_id_str))
 	{
 		rpcn_log.error("Disconnecting from RPCN!");
 		is_psn_active = false;
@@ -668,13 +670,13 @@ void np_handler::operator()()
 
 	while (thread_ctrl::state() != thread_state::aborting && !Emu.IsStopped())
 	{
-		if (!rpcn.manage_connection())
+		if (!rpcn->manage_connection())
 		{
 			thread_ctrl::wait_for(200'000);
 			continue;
 		}
 
-		auto replies = rpcn.get_replies();
+		auto replies = rpcn->get_replies();
 		for (auto& reply : replies)
 		{
 			const u16 command     = reply.second.first;
@@ -699,7 +701,7 @@ void np_handler::operator()()
 			}
 		}
 
-		auto notifications = rpcn.get_notifications();
+		auto notifications = rpcn->get_notifications();
 		for (auto& notif : notifications)
 		{
 			switch (notif.first)
@@ -793,7 +795,7 @@ bool np_handler::reply_create_join_room(u32 req_id, std::vector<u8>& reply_data)
 	// Establish Matching2 self signaling info
 	auto& sigh = g_fxo->get<named_thread<signaling_handler>>();
 	sigh.set_self_sig2_info(room_info->roomId, 1);
-	sigh.set_sig2_infos(room_info->roomId, 1, SCE_NP_SIGNALING_CONN_STATUS_ACTIVE, rpcn.get_addr_sig(), rpcn.get_port_sig(), true);
+	sigh.set_sig2_infos(room_info->roomId, 1, SCE_NP_SIGNALING_CONN_STATUS_ACTIVE, rpcn->get_addr_sig(), rpcn->get_port_sig(), true);
 	// TODO? Should this send a message to Signaling CB? Is this even necessary?
 
 	extra_nps::print_create_room_resp(room_resp);
@@ -837,7 +839,7 @@ bool np_handler::reply_join_room(u32 req_id, std::vector<u8>& reply_data)
 	// Establish Matching2 self signaling info
 	auto& sigh = g_fxo->get<named_thread<signaling_handler>>();
 	sigh.set_self_sig2_info(room_info->roomId, member_id);
-	sigh.set_sig2_infos(room_info->roomId, member_id, SCE_NP_SIGNALING_CONN_STATUS_ACTIVE, rpcn.get_addr_sig(), rpcn.get_port_sig(), true);
+	sigh.set_sig2_infos(room_info->roomId, member_id, SCE_NP_SIGNALING_CONN_STATUS_ACTIVE, rpcn->get_addr_sig(), rpcn->get_port_sig(), true);
 	// TODO? Should this send a message to Signaling CB? Is this even necessary?
 
 	sysutil_register_cb([=](ppu_thread& cb_ppu) -> s32
@@ -1336,7 +1338,7 @@ s32 np_handler::analyze_dns_packet(s32 s, const u8* buf, u32 len)
 bool np_handler::error_and_disconnect(const std::string& error_msg)
 {
 	rpcn_log.error("%s", error_msg);
-	rpcn.disconnect();
+	rpcn->disconnect();
 
 	return false;
 }

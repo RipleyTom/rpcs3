@@ -78,6 +78,7 @@ namespace vm
 	atomic_t<u64, 64> g_range_lock_set[64]{};
 
 	// Memory pages
+	atomic_t<u8> test;
 	std::array<memory_page, 0x100000000 / 4096> g_pages{};
 
 	std::pair<bool, u64> try_reservation_update(u32 addr)

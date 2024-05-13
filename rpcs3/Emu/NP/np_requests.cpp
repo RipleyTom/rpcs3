@@ -1835,8 +1835,4 @@ namespace np
 	{
 		return handle_tus_no_data(req_id, reply_data);
 	}
-
-	
-
-
 } // namespace np

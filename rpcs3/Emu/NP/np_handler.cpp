@@ -1622,4 +1622,17 @@ namespace np
 
 		return {include_onlinename, include_avatarurl};
 	}
+	
+	void np_handler::add_gui_request(u32 ctx_id)
+	{
+		std::lock_guard lock(gui_requests.mutex);
+		ensure(gui_requests.list.insert(ctx_id).second);
+	}
+
+	bool np_handler::is_gui_request(u32 ctx_id)
+	{
+		std::lock_guard lock(gui_requests.mutex);
+		return gui_requests.list.erase(ctx_id);
+	}
+
 } // namespace np

@@ -217,6 +217,9 @@ struct TusDeleteMultiSlotDataRequestBuilder;
 struct SetPresenceRequest;
 struct SetPresenceRequestBuilder;
 
+struct InitializeContextRequest;
+struct InitializeContextRequestBuilder;
+
 struct BinAttr FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BinAttrBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -6162,6 +6165,67 @@ inline ::flatbuffers::Offset<SetPresenceRequest> CreateSetPresenceRequestDirect(
       status__,
       comment__,
       data__);
+}
+
+struct InitializeContextRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef InitializeContextRequestBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_IS_MATCHING_2 = 4,
+    VT_NEED_ONLINENAME = 6,
+    VT_NEED_AVATARURL = 8
+  };
+  bool is_matching_2() const {
+    return GetField<uint8_t>(VT_IS_MATCHING_2, 0) != 0;
+  }
+  bool need_onlinename() const {
+    return GetField<uint8_t>(VT_NEED_ONLINENAME, 0) != 0;
+  }
+  bool need_avatarurl() const {
+    return GetField<uint8_t>(VT_NEED_AVATARURL, 0) != 0;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_IS_MATCHING_2, 1) &&
+           VerifyField<uint8_t>(verifier, VT_NEED_ONLINENAME, 1) &&
+           VerifyField<uint8_t>(verifier, VT_NEED_AVATARURL, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct InitializeContextRequestBuilder {
+  typedef InitializeContextRequest Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_is_matching_2(bool is_matching_2) {
+    fbb_.AddElement<uint8_t>(InitializeContextRequest::VT_IS_MATCHING_2, static_cast<uint8_t>(is_matching_2), 0);
+  }
+  void add_need_onlinename(bool need_onlinename) {
+    fbb_.AddElement<uint8_t>(InitializeContextRequest::VT_NEED_ONLINENAME, static_cast<uint8_t>(need_onlinename), 0);
+  }
+  void add_need_avatarurl(bool need_avatarurl) {
+    fbb_.AddElement<uint8_t>(InitializeContextRequest::VT_NEED_AVATARURL, static_cast<uint8_t>(need_avatarurl), 0);
+  }
+  explicit InitializeContextRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<InitializeContextRequest> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<InitializeContextRequest>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<InitializeContextRequest> CreateInitializeContextRequest(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    bool is_matching_2 = false,
+    bool need_onlinename = false,
+    bool need_avatarurl = false) {
+  InitializeContextRequestBuilder builder_(_fbb);
+  builder_.add_need_avatarurl(need_avatarurl);
+  builder_.add_need_onlinename(need_onlinename);
+  builder_.add_is_matching_2(is_matching_2);
+  return builder_.Finish();
 }
 
 #endif  // FLATBUFFERS_GENERATED_NP2STRUCTS_H_

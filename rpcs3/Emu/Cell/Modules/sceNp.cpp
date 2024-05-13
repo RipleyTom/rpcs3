@@ -4440,17 +4440,34 @@ error_code check_text(vm::cptr<char> text)
 
 error_code sceNpMatchingCreateCtx(vm::ptr<SceNpId> npId, vm::ptr<SceNpMatchingHandler> handler, vm::ptr<void> arg, vm::ptr<u32> ctx_id)
 {
-	sceNp.todo("sceNpMatchingCreateCtx(npId=*0x%x, handler=*0x%x, arg=*0x%x, ctx_id=*0x%x)", npId, handler, arg, ctx_id);
+	sceNp.warning("sceNpMatchingCreateCtx(npId=*0x%x, handler=*0x%x, arg=*0x%x, ctx_id=*0x%x)", npId, handler, arg, ctx_id);
 
-	if (false) // TODO
+	auto& nph = g_fxo->get<named_thread<np::np_handler>>();
+
+	if (nph.is_NP2_Match2_init)
+	{
 		return SCE_NP_MATCHING_ERROR_UTILITY_UNAVAILABLE;
+	}
 
-	if (false) // TODO
+	if (!nph.is_NP_init)
+	{
 		return SCE_NP_MATCHING_ERROR_NOT_INITIALIZED;
+	}
 
-	if (false) // TODO
+	// assumed checks done on vsh
+	if (!npId || !handler || !ctx_id)
+	{
+		return SCE_NP_MATCHING_ERROR_INVALID_ARG;
+	}
+
+	s32 id = create_matching_context(npId, handler, arg);
+
+	if (!id)
+	{
 		return SCE_NP_MATCHING_ERROR_CTX_MAX;
+	}
 
+	*ctx_id = static_cast<u32>(id);
 	return CELL_OK;
 }
 
@@ -5050,10 +5067,14 @@ error_code check_attr_create_room(vm::cptr<SceNpMatchingAttr> attribute)
 
 error_code sceNpMatchingCreateRoomGUI(u32 ctx_id, vm::cptr<SceNpCommunicationId> communicationId, vm::cptr<SceNpMatchingAttr> attr, vm::ptr<SceNpMatchingGUIHandler> handler, vm::ptr<void> arg)
 {
-	sceNp.todo("sceNpMatchingCreateRoomGUI(ctx_id=%d, communicationId=*0x%x, attr=*0x%x, handler=*0x%x, arg=*0x%x)", ctx_id, communicationId, attr, handler, arg);
+	sceNp.warning("sceNpMatchingCreateRoomGUI(ctx_id=%d, communicationId=*0x%x, attr=*0x%x, handler=*0x%x, arg=*0x%x)", ctx_id, communicationId, attr, handler, arg);
 
-	if (false) // TODO
+	auto& nph = g_fxo->get<named_thread<np::np_handler>>();
+
+	if (nph.is_NP2_Match2_init)
+	{
 		return SCE_NP_MATCHING_ERROR_UTILITY_UNAVAILABLE;
+	}
 
 	if (!communicationId || !handler)
 		return SCE_NP_MATCHING_ERROR_INVALID_ARG;
@@ -5063,18 +5084,7 @@ error_code sceNpMatchingCreateRoomGUI(u32 ctx_id, vm::cptr<SceNpCommunicationId>
 	if (err != CELL_OK)
 		return err;
 
-	if (false) // TODO
-		return SCE_NP_MATCHING_ERROR_BUSY;
-
-	// TODO: set callback: handler + arg
-
-	err = CELL_OK; // create_room
-	if (err != CELL_OK && static_cast<u32>(err) != SCE_NP_MATCHING_ERROR_BUSY)
-	{
-		// TODO ?
-	}
-
-	return err;
+	return nph.create_room_gui(ctx_id, communicationId, attr, handler, arg);
 }
 
 error_code sceNpMatchingJoinRoomGUI(u32 ctx_id, vm::ptr<SceNpRoomId> room_id, vm::ptr<SceNpMatchingGUIHandler> handler, vm::ptr<void> arg)

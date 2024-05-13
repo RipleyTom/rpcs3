@@ -257,7 +257,7 @@ struct commerce2_ctx
 };
 s32 create_commerce2_context(u32 version, vm::cptr<SceNpId> npid, vm::ptr<SceNpCommerce2Handler> handler, vm::ptr<void> arg);
 std::shared_ptr<commerce2_ctx> get_commerce2_context(u16 ctx_id);
-bool destroy_commerce2_context(s32 ctx_id);
+bool destroy_commerce2_context(u32 ctx_id);
 
 struct signaling_ctx
 {
@@ -278,4 +278,28 @@ struct signaling_ctx
 };
 s32 create_signaling_context(vm::ptr<SceNpId> npid, vm::ptr<SceNpSignalingHandler> handler, vm::ptr<void> arg);
 std::shared_ptr<signaling_ctx> get_signaling_context(u32 ctx_id);
-bool destroy_signaling_context(s32 ctx_id);
+bool destroy_signaling_context(u32 ctx_id);
+
+struct matching_ctx
+{
+	matching_ctx(vm::ptr<SceNpId> npid, vm::ptr<SceNpMatchingHandler> handler, vm::ptr<void> arg);
+
+	void queue_gui_cb(s32 event, s32 error_code);
+
+	static const u32 id_base  = 0x9001;
+	static const u32 id_step  = 1;
+	static const u32 id_count = 8; // no define associated with the value
+	SAVESTATE_INIT_POS(32);
+
+	SceNpId npid{};
+	vm::ptr<SceNpMatchingHandler> handler{};
+	vm::ptr<void> arg{};
+
+	atomic_t<u32> busy = 0;
+	u32 ctx_id = 0;
+	vm::ptr<SceNpMatchingGUIHandler> gui_handler{};
+	vm::ptr<void> gui_arg{};
+};
+s32 create_matching_context(vm::ptr<SceNpId> npid, vm::ptr<SceNpMatchingHandler> handler, vm::ptr<void> arg);
+std::shared_ptr<matching_ctx> get_matching_context(u32 ctx_id);
+bool destroy_matching_context(u32 ctx_id);

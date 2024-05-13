@@ -25,6 +25,7 @@ namespace np
 		MISC = 0x3333,
 		SCORE = 0x3334,
 		TUS = 0x3335,
+		GUI = 0x3336,
 	};
 
 	struct ticket_data
@@ -174,6 +175,9 @@ namespace np
 		u32 send_room_message(SceNpMatching2ContextId ctx_id, vm::cptr<SceNpMatching2RequestOptParam> optParam, const SceNpMatching2SendRoomMessageRequest* req);
 
 		u32 get_match2_event(SceNpMatching2EventKey event_key, u32 dest_addr, u32 size);
+
+		// Old GUI Matching requests
+		error_code create_room_gui(u32 ctx_id, vm::cptr<SceNpCommunicationId> communicationId, vm::cptr<SceNpMatchingAttr> attr, vm::ptr<SceNpMatchingGUIHandler> handler, vm::ptr<void> arg);
 
 		// Score requests
 		void transaction_async_handler(std::unique_lock<shared_mutex> lock, const std::shared_ptr<generic_async_transaction_context>& trans_ctx, u32 req_id, bool async);
@@ -346,7 +350,7 @@ namespace np
 			{
 				if (cb)
 				{
-					sysutil_register_cb([=, *this](ppu_thread& cb_ppu) -> s32
+					sysutil_register_cb([=, ctx_id = this->ctx_id, event_type = this->event_type, cb = this->cb, cb_arg = this->cb_arg](ppu_thread& cb_ppu) -> s32
 					{
 						cb(cb_ppu, ctx_id, req_id, event_type, event_key, error_code, data_size, cb_arg);
 						return 0;
@@ -459,5 +463,14 @@ namespace np
 
 		shared_mutex mutex_history;
 		std::map<std::string, player_history> players_history; // npid / history
+
+		struct
+		{
+			shared_mutex mutex;
+			std::set<u32> list;
+		} gui_requests;
+
+		void add_gui_request(u32 req_id);
+		bool is_gui_request(u32 ctx_id);
 	};
 } // namespace np

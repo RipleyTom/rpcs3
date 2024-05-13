@@ -1374,6 +1374,8 @@ namespace rpcn
 		return forge_send(CommandType::GetWorldList, req_id, data);
 	}
 
+	//bool rpcn_client::create_room_gui(u32 req_id, const SceNpCommunicationId& communication_id, )
+
 	bool rpcn_client::createjoin_room(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatching2CreateJoinRoomRequest* req)
 	{
 		flatbuffers::FlatBufferBuilder builder(1024);
@@ -1498,6 +1500,14 @@ namespace rpcn
 		builder.Finish(req_finished);
 
 		return forge_request_with_com_id(builder, communication_id, CommandType::CreateRoom, req_id);
+	}
+
+	bool rpcn_client::createjoin_room_gui(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatchingAttr* req)
+	{
+		flatbuffers::FlatBufferBuilder builder(1024);
+		
+
+		//return forge_request_with_com_id(builder, communication_id, CommandType::CreateRoom, req_id);
 	}
 
 	bool rpcn_client::join_room(u32 req_id, const SceNpCommunicationId& communication_id, const SceNpMatching2JoinRoomRequest* req)

@@ -483,3 +483,9 @@ table SetPresenceRequest {
 	comment:string;
 	data:[uint8];
 }
+
+table InitializeContextRequest {
+	is_matching_2:bool;
+	need_onlinename:bool;
+	need_avatarurl:bool;
+}

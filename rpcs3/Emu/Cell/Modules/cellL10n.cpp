@@ -2500,7 +2500,7 @@ s32 UCS2stoSBCSs(vm::cptr<u16> src, vm::ptr<u32> src_len, vm::ptr<u8> dst, vm::p
 	{
 		const s16 ucs2 = src[src_pos];
 
-		if (ucs2 >= 0xfffe)
+		if (static_cast<u16>(ucs2) >= 0xfffe)
 		{
 			*src_len -= src_pos;
 			*dst_len = src_pos;

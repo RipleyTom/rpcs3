@@ -1274,12 +1274,14 @@ struct SceNpId
 {
 	SceNpOnlineId handle;
 
-	union
-	{
-		// This field (system reserved) seems to be combined of two parts
-		// The second is used by sceNpUtilSetPlatformType and sceNpUtilGetPlatformType
-		u8 opt[8];
-		nse_t<u32, 1> unk1[2];
+	union {
+		u8 unknown_bytes[4];
+		be_t<u32, 1> unknown;
+	};
+
+	union {
+		u8 platform_bytes[4];
+		be_t<u32, 1> platform;
 	};
 
 	u8 reserved[8];
@@ -1573,18 +1575,6 @@ union SceNpSignalingConnectionInfo
 	be_t<u32> packet_loss;
 };
 
-// Network information structure
-struct SceNpSignalingNetInfo
-{
-	be_t<u32> size;
-	be_t<u32> local_addr; // in_addr
-	be_t<u32> mapped_addr; // in_addr
-	be_t<s32> nat_status;
-	be_t<s32> upnp_status;
-	be_t<s32> npport_status;
-	be_t<u16> npport;
-};
-
 struct SceNpSignalingNetInfoDeprecated
 {
 	be_t<u32> size;
@@ -1593,6 +1583,13 @@ struct SceNpSignalingNetInfoDeprecated
 	be_t<s32> nat_status;
 	be_t<s32> upnp_status;
 	be_t<s32> npport_status;
+};
+
+// Network information structure
+struct SceNpSignalingNetInfo
+{
+	SceNpSignalingNetInfoDeprecated info;
+	be_t<u16> npport;
 };
 
 struct SceNpCustomMenuAction

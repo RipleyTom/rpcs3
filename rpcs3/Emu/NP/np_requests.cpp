@@ -606,6 +606,8 @@ namespace np
 		RoomMemberDataInternal_to_SceNpMatching2RoomMemberDataInternal(edata, resp, nullptr, mdata_info, include_onlinename, include_avatarurl);
 		np_memory.shrink_allocation(edata.addr(), edata.size());
 
+		extra_nps::print_SceNpMatching2RoomMemberDataInternal(mdata_info);
+
 		cb_info_opt->queue_callback(req_id, event_key, 0, edata.size());
 	}
 

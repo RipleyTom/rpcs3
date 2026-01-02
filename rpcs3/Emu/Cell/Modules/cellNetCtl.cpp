@@ -258,6 +258,7 @@ struct netstart_hack
 	{
 		thread_ctrl::wait_for(500'000);
 
+		cellNetCtl.trace("Sending CELL_SYSUTIL_NET_CTL_NETSTART_FINISHED");
 		sysutil_send_system_cmd(CELL_SYSUTIL_NET_CTL_NETSTART_LOADED, 0);
 		sysutil_send_system_cmd(CELL_SYSUTIL_NET_CTL_NETSTART_FINISHED, 0);
 	}
@@ -265,7 +266,7 @@ struct netstart_hack
 
 error_code cellNetCtlNetStartDialogLoadAsync(vm::cptr<CellNetCtlNetStartDialogParam> param)
 {
-	cellNetCtl.warning("cellNetCtlNetStartDialogLoadAsync(param=*0x%x)", param);
+	cellNetCtl.warning("cellNetCtlNetStartDialogLoadAsync(param=*0x%x(%d))", param, param ? static_cast<s32>(param->type) : 0);
 
 	auto& nph = g_fxo->get<named_thread<np::np_handler>>();
 

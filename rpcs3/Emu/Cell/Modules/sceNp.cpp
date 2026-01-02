@@ -4227,7 +4227,7 @@ error_code sceNpManagerGetTicketParam(s32 paramId, vm::ptr<SceNpTicketParam> par
 		return SCE_NP_ERROR_INVALID_STATE;
 	}
 
-	if (!ticket.get_value(paramId, param))
+	if (!ticket.get_value(paramId, param.get_ptr()))
 	{
 		return SCE_NP_ERROR_INVALID_STATE;
 	}
@@ -7056,14 +7056,13 @@ error_code sceNpUtilCanonicalizeNpIdForPs3(vm::ptr<SceNpId> npId)
 	if (!npId)
 		return SCE_NP_UTIL_ERROR_INVALID_ARGUMENT;
 
-	// TODO: These checks are commented out for compatibility with RPCN for now
-	//if (npId->reserved[0] != 1)
-	//	return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
+	if (npId->reserved[0] != 1)
+		return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
 
-	//if (!npId->unk1[1])
-	//{
-	//	npId->unk1[1] = "ps3\0"_u32;
-	//}
+	if (!npId->platform)
+	{
+		std::memcpy(npId->platform_bytes, "ps3\0", 4);
+	}
 
 	return CELL_OK;
 }
@@ -7075,14 +7074,13 @@ error_code sceNpUtilCanonicalizeNpIdForPsp(vm::ptr<SceNpId> npId)
 	if (!npId)
 		return SCE_NP_UTIL_ERROR_INVALID_ARGUMENT;
 
-	// TODO: These checks are commented out for compatibility with RPCN for now
-	//if (npId->reserved[0] != 1)
-	//	return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
+	if (npId->reserved[0] != 1)
+		return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
 
-	//if (!npId->unk1[1])
-	//{
-	//	npId->unk1[1] = "psp\0"_u32; // TODO: confirm
-	//}
+	if (!npId->platform)
+	{
+		std::memcpy(npId->platform_bytes, "psp\0", 4);
+	}
 
 	return CELL_OK;
 }
@@ -7094,6 +7092,11 @@ error_code sceNpUtilCmpNpId(vm::ptr<SceNpId> id1, vm::ptr<SceNpId> id2)
 	if (!id1 || !id2)
 	{
 		return SCE_NP_UTIL_ERROR_INVALID_ARGUMENT;
+	}
+
+	if (id1->reserved[0] != 1 || id2->reserved[0] != 1)
+	{
+		return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
 	}
 
 	if (!np::is_same_npid(*id1, *id2))
@@ -7111,10 +7114,10 @@ error_code sceNpUtilCmpNpIdInOrder(vm::cptr<SceNpId> id1, vm::cptr<SceNpId> id2,
 		return SCE_NP_UTIL_ERROR_INVALID_ARGUMENT;
 	}
 
-	// if (id1->reserved[0] != 1 || id2->reserved[0] != 1)
-	// {
-	// 	return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
-	// }
+	if (id1->reserved[0] != 1 || id2->reserved[0] != 1)
+	{
+		return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
+	}
 
 	if (s32 res = strncmp(id1->handle.data, id2->handle.data, 16))
 	{
@@ -7122,29 +7125,31 @@ error_code sceNpUtilCmpNpIdInOrder(vm::cptr<SceNpId> id1, vm::cptr<SceNpId> id2,
 		return CELL_OK;
 	}
 
-	if (s32 res = std::memcmp(id1->unk1, id2->unk1, 4))
+	if (s32 res = std::memcmp(id1->unknown_bytes, id2->unknown_bytes, 4))
 	{
 		*order = std::clamp<s32>(res, -1, 1);
 		return CELL_OK;
 	}
 
-	const u8 opt14 = id1->opt[4];
-	const u8 opt24 = id2->opt[4];
+	const u8 id1_platform_set = id1->platform_bytes[0];
+	const u8 id2_platform_set = id2->platform_bytes[0];
 
-	if (opt14 == 0 && opt24 == 0)
+	if (!id1_platform_set && !id2_platform_set)
 	{
 		*order = 0;
 		return CELL_OK;
 	}
 
-	if (opt14 != 0 && opt24 != 0)
-	{
-		s32 res = std::memcmp(id1->unk1 + 1, id2->unk1 + 1, 4);
-		*order = std::clamp<s32>(res, -1, 1);
-		return CELL_OK;
-	}
+	const void *id1_platform_pointer = id1->platform_bytes;
+	const void *id2_platform_pointer = id2->platform_bytes;
 
-	s32 res = std::memcmp((opt14 != 0 ? id1 : id2)->unk1 + 1, "ps3", 4);
+	if (!id1_platform_set)
+		id1_platform_pointer = "ps3";
+
+	if (!id2_platform_set)
+		id2_platform_pointer = "ps3";
+
+	s32 res = std::memcmp(id1_platform_pointer, id2_platform_pointer, 4);
 	*order = std::clamp<s32>(res, -1, 1);
 	return CELL_OK;
 }
@@ -7158,10 +7163,10 @@ error_code sceNpUtilCmpOnlineId(vm::cptr<SceNpId> id1, vm::cptr<SceNpId> id2)
 		return SCE_NP_UTIL_ERROR_INVALID_ARGUMENT;
 	}
 
-	// if (id1->reserved[0] != 1 || id2->reserved[0] != 1)
-	// {
-	// 	return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
-	// }
+	if (id1->reserved[0] != 1 || id2->reserved[0] != 1)
+	{
+		return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
+	}
 
 	if (strncmp(id1->handle.data, id2->handle.data, 16) != 0)
 	{
@@ -7180,19 +7185,14 @@ error_code sceNpUtilGetPlatformType(vm::cptr<SceNpId> npId)
 		return SCE_NP_UTIL_ERROR_INVALID_ARGUMENT;
 	}
 
-	switch (npId->unk1[1])
-	{
-	case "ps4\0"_u32:
+	if (std::memcmp(npId->platform_bytes, "ps4\0", 4) == 0)
 		return not_an_error(SCE_NP_PLATFORM_TYPE_PS4);
-	case "psp2"_u32:
+	if (std::memcmp(npId->platform_bytes, "psp2", 4) == 0)
 		return not_an_error(SCE_NP_PLATFORM_TYPE_VITA);
-	case "ps3\0"_u32:
+	if (std::memcmp(npId->platform_bytes, "ps3\0", 4) == 0)
 		return not_an_error(SCE_NP_PLATFORM_TYPE_PS3);
-	case 0u:
+	if (std::memcmp(npId->platform_bytes, "\0\0\0\0", 4) == 0)
 		return not_an_error(SCE_NP_PLATFORM_TYPE_NONE);
-	default:
-		break;
-	}
 
 	return SCE_NP_UTIL_ERROR_UNKNOWN_PLATFORM_TYPE;
 }
@@ -7209,13 +7209,13 @@ error_code sceNpUtilSetPlatformType(vm::ptr<SceNpId> npId, SceNpPlatformType pla
 	switch (platformType)
 	{
 	case SCE_NP_PLATFORM_TYPE_PS4:
-		npId->unk1[1] = "ps4\0"_u32; break;
+		std::memcpy(npId->platform_bytes, "ps4\0", 4); break;
 	case SCE_NP_PLATFORM_TYPE_VITA:
-		npId->unk1[1] = "psp2"_u32; break;
+		std::memcpy(npId->platform_bytes, "psp2", 4); break;
 	case SCE_NP_PLATFORM_TYPE_PS3:
-		npId->unk1[1] = "ps3\0"_u32; break;
+		std::memcpy(npId->platform_bytes, "ps3\0", 4); break;
 	case SCE_NP_PLATFORM_TYPE_NONE:
-		npId->unk1[1] = 0; break;
+		npId->platform = 0; break;
 	default:
 		return SCE_NP_UTIL_ERROR_UNKNOWN_PLATFORM_TYPE;
 	}

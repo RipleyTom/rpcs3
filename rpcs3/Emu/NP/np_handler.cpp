@@ -131,7 +131,7 @@ namespace np
 		return raw_data.empty();
 	}
 
-	bool ticket::get_value(s32 param_id, vm::ptr<SceNpTicketParam> param) const
+	bool ticket::get_value(s32 param_id, SceNpTicketParam* param) const
 	{
 		if (!parse_success)
 		{
@@ -241,21 +241,14 @@ namespace np
 
 	std::string ticket::get_service_id() const
 	{
-		if (!parse_success)
-		{
-			return "";
-		}
+		SceNpTicketParam service_id;
 
-		const auto& node = nodes[0].data.data_nodes[8];
-		if (node.len != SCE_NP_SERVICE_ID_SIZE)
-		{
+		if (!get_value(SCE_NP_TICKET_PARAM_SERVICE_ID, &service_id))
 			return "";
-		}
 
 		// Trim null characters
-		const auto& vec = node.data.data_vec;
-		auto it = std::find(vec.begin(), vec.end(), 0);
-		return std::string(vec.begin(), it);
+		auto it = std::find(service_id.data, service_id.data + SCE_NP_SERVICE_ID_SIZE, 0);
+		return std::string(service_id.data, it);
 	}
 
 	std::optional<ticket_data> ticket::parse_node(std::size_t index) const

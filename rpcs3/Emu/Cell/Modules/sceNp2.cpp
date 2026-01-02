@@ -724,18 +724,21 @@ error_code sceNpMatching2SignalingGetConnectionInfo(
 		case SCE_NP_SIGNALING_CONN_INFO_PEER_NPID:
 		{
 			connInfo->npId = si->npid;
+			sceNp2.trace("returning npid: %s", np::npid_to_debug_string(connInfo->npId));
 			break;
 		}
 		case SCE_NP_SIGNALING_CONN_INFO_PEER_ADDRESS:
 		{
 			connInfo->address.port = std::bit_cast<u16, be_t<u16>>(si->port);
 			connInfo->address.addr.np_s_addr = si->addr;
+			sceNp2.trace("returning peer address %s:%d", np::ip_to_string(connInfo->address.addr.np_s_addr), si->port);
 			break;
 		}
 		case SCE_NP_SIGNALING_CONN_INFO_MAPPED_ADDRESS:
 		{
 			connInfo->address.port = std::bit_cast<u16, be_t<u16>>(si->mapped_port);
 			connInfo->address.addr.np_s_addr = si->mapped_addr;
+			sceNp2.trace("returning mapped address %s:%d", np::ip_to_string(connInfo->address.addr.np_s_addr), si->port);
 			break;
 		}
 		case SCE_NP_SIGNALING_CONN_INFO_PACKET_LOSS:

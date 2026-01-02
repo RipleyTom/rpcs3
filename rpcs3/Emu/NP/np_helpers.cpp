@@ -66,7 +66,13 @@ namespace np
 	{
 		memset(&npid, 0, sizeof(npid));
 		strcpy_trunc(npid.handle.data, str);
-		// npid->reserved[0] = 1;
+		std::memcpy(npid.platform_bytes, "ps3\0", 4);
+		npid.reserved[0] = 1;
+	}
+
+	std::string npid_to_debug_string(const SceNpId& npid)
+	{
+		return fmt::format("\"%s\", platform: %s", npid.handle.data, npid.platform_bytes);
 	}
 
 	void string_to_online_name(std::string_view str, SceNpOnlineName& online_name)
@@ -101,26 +107,13 @@ namespace np
 
 	bool is_same_npid(const SceNpId& npid_1, const SceNpId& npid_2)
 	{
-		// Unknown what this constant means
-		// if (id1->reserved[0] != 1 || id2->reserved[0] != 1)
-		// {
-		// 	return SCE_NP_UTIL_ERROR_INVALID_NP_ID;
-		// }
-
-		if (strncmp(npid_1.handle.data, npid_2.handle.data, 16) == 0) // || id1->unk1[0] != id2->unk1[0])
+		if (std::strncmp(npid_1.handle.data, npid_2.handle.data, 16) == 0 &&
+			npid_1.unknown == npid_2.unknown &&
+			((npid_1.platform == npid_2.platform) || !npid_1.platform_bytes[0] || !npid_2.platform_bytes[0]))
 		{
 			return true;
 		}
 
-		// if (id1->unk1[1] != id2->unk1[1])
-		// {
-		// 	// If either is zero they match
-		// 	if (id1->opt[4] && id2->opt[4])
-		// 	{
-		// 		return SCE_NP_UTIL_ERROR_NOT_MATCH;
-		// 	}
-		// }
-
 		return false;
 	}
-}
+} // namespace np

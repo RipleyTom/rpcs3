@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Emu/Cell/lv2/sys_process.h"
 #include "fb_helpers.h"
+#include "np_helpers.h"
 
 LOG_CHANNEL(rpcn_log, "rpcn");
 
@@ -70,9 +71,7 @@ namespace np
 	void UserInfo_to_SceNpUserInfo(const UserInfo* user, SceNpUserInfo* user_info)
 	{
 		if (const auto npid = user->npId(); npid)
-		{
-			std::memcpy(user_info->userId.handle.data, npid->c_str(), std::min<usz>(16, npid->size()));
-		}
+			np::string_to_npid(npid->c_str(), user_info->userId);
 
 		if (const auto online_name = user->onlineName(); online_name)
 		{
@@ -88,7 +87,7 @@ namespace np
 	void UserInfo_to_SceNpUserInfo2(event_data& edata, const UserInfo* user, SceNpUserInfo2* user_info, bool include_onlinename, bool include_avatarurl)
 	{
 		if (user->npId())
-			std::memcpy(user_info->npId.handle.data, user->npId()->c_str(), std::min<usz>(16, user->npId()->size()));
+			np::string_to_npid(user->npId()->c_str(), user_info->npId);
 
 		if (include_onlinename && user->onlineName())
 		{
@@ -557,7 +556,7 @@ namespace np
 		if (const auto* kick_npid = resp->kick_actor(); kick_npid)
 		{
 			auto* npid = edata.allocate<SceNpId>(sizeof(SceNpId), room_status->kick_actor);
-			std::memcpy(npid->handle.data, kick_npid->c_str(), std::min<usz>(16, kick_npid->size()));
+			np::string_to_npid(kick_npid->c_str(), *npid);
 		}
 
 		if (const auto* opt = resp->opt(); opt && opt->size())

@@ -69,7 +69,7 @@ namespace np
 		const u8* data() const;
 		bool empty() const;
 
-		bool get_value(s32 param_id, vm::ptr<SceNpTicketParam> param) const;
+		bool get_value(s32 param_id, SceNpTicketParam* param) const;
 		std::string get_service_id() const;
 
 	private:

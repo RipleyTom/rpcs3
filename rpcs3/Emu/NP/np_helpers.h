@@ -12,6 +12,7 @@ namespace np
 	std::string communication_id_to_string(const SceNpCommunicationId& communicationId);
 
 	void string_to_npid(std::string_view str, SceNpId& npid);
+	std::string npid_to_debug_string(const SceNpId& npid);
 	void string_to_online_name(std::string_view str, SceNpOnlineName& online_name);
 	void string_to_avatar_url(std::string_view str, SceNpAvatarUrl& avatar_url);
 	void string_to_communication_id(std::string_view str, SceNpCommunicationId& comm_id);
